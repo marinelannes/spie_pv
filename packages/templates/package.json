@@ -1,0 +1,13 @@
+{
+  "name": "@spie/templates",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rendu des modèles de PV (composants React → HTML/CSS imprimable). Lot 1.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

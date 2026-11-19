@@ -1,0 +1,94 @@
+# Intégration continue : lint, types, tests, build, validation des templates Bicep et de l'image Docker.
+# Sur main, ce workflow est appelé par deploy-recette.yml (workflow_call) avant le déploiement : il n'est donc pas
+# déclenché directement par les push sur main, pour ne pas s'exécuter deux fois.
+name: CI
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+  workflow_call:
+    inputs:
+      skip_image:
+        description: Ne pas construire l'image Docker (le workflow appelant la construit lui-même)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    name: Lint, types, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v5
+
+      # Version de pnpm lue dans package.json (champ packageManager : pnpm@9.15.0).
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Installer Node.js 24 (cache du store pnpm)
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Installer les dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Vérification des types
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  bicep:
+    name: Validation Bicep
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v5
+
+      # Compilation hors ligne (aucune connexion Azure) : syntaxe, types, règles du linter.
+      # Les fichiers .bicepparam lisent POSTGRES_ADMIN_PASSWORD : valeur factice, jamais déployée.
+      - name: Compiler les templates et les paramètres
+        env:
+          POSTGRES_ADMIN_PASSWORD: valeur-factice-pour-compilation-ci
+        run: |
+          az bicep build --file infra/main.bicep --stdout > /dev/null
+          az bicep build-params --file infra/main.recette.bicepparam --stdout > /dev/null
+          az bicep build-params --file infra/main.production.bicepparam --stdout > /dev/null
+
+  image:
+    name: Construction de l'image Docker (sans publication)
+    needs: verifier
+    if: ${{ !inputs.skip_image }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v5
+
+      - name: Préparer Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Construire l'image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          tags: spie-pv:ci-${{ github.sha }}
+          cache-from: type=gha,scope=spie-pv
+          cache-to: type=gha,scope=spie-pv,mode=max

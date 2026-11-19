@@ -1,0 +1,171 @@
+# Déploiement continu en RECETTE : à chaque push sur main (ou à la demande).
+#   1. CI complète (ci.yml) ;
+#   2. construction de l'image spie-pv, taguée avec le SHA du commit, et publication dans l'ACR de recette ;
+#   3. mise à jour des Container Apps API et worker (az containerapp update --image) ;
+#   4. attente des nouvelles révisions puis contrôle de santé GET /api/health.
+#
+# Configuration GitHub (environnement « recette ») : voir docs/infra.md.
+#   Secrets   : AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (identité fédérée OIDC, aucun mot de passe)
+#   Variables : AZURE_RESOURCE_GROUP, ACR_NAME, API_APP_NAME, WORKER_APP_NAME
+#
+# Les Container Apps doivent exister : au tout premier déploiement, ce workflow publie l'image puis s'arrête avec
+# un message ; lancer alors le workflow « Infrastructure » avec image_tag = SHA du commit (docs/infra.md).
+name: Déploiement recette
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploiement-recette
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+    with:
+      skip_image: true
+
+  deployer:
+    name: Publier l'image et déployer
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment:
+      name: recette
+      url: ${{ steps.sante.outputs.url }}
+    env:
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      ACR_NAME: ${{ vars.ACR_NAME }}
+      API_APP_NAME: ${{ vars.API_APP_NAME }}
+      WORKER_APP_NAME: ${{ vars.WORKER_APP_NAME }}
+      IMAGE_REPOSITORY: spie-pv
+      IMAGE_TAG: ${{ github.sha }}
+    steps:
+      - name: Vérifier la configuration de l'environnement GitHub
+        run: |
+          manquantes=""
+          for nom in AZURE_RESOURCE_GROUP ACR_NAME API_APP_NAME WORKER_APP_NAME; do
+            if [ -z "${!nom}" ]; then manquantes="$manquantes $nom"; fi
+          done
+          if [ -n "$manquantes" ]; then
+            echo "::error::Variables manquantes dans l'environnement GitHub « recette » :$manquantes (voir docs/infra.md)"
+            exit 1
+          fi
+
+      - name: Récupérer le code
+        uses: actions/checkout@v5
+
+      - name: Connexion à Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Connexion au registre
+        id: acr
+        run: |
+          serveur=$(az acr show --name "$ACR_NAME" --query loginServer --output tsv)
+          az acr login --name "$ACR_NAME"
+          echo "image=$serveur/$IMAGE_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Préparer Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Construire et publier l'image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          provenance: false
+          tags: ${{ steps.acr.outputs.image }}
+          cache-from: type=gha,scope=spie-pv
+          cache-to: type=gha,scope=spie-pv,mode=max
+
+      - name: Vérifier que les Container Apps existent
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          for app in "$API_APP_NAME" "$WORKER_APP_NAME"; do
+            if ! az containerapp show --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --query name --output tsv > /dev/null 2>&1; then
+              echo "::error::La Container App « $app » n'existe pas encore. L'image $IMAGE_REPOSITORY:$IMAGE_TAG est publiée : lancer le workflow « Infrastructure » (environnement recette, appliquer = oui, image_tag = $IMAGE_TAG). Voir docs/infra.md, premier déploiement."
+              exit 1
+            fi
+          done
+
+      # APP_VERSION (version renvoyée par /api/health) suit le tag d'image, comme dans le Bicep.
+      - name: Déployer la nouvelle image (API puis worker)
+        env:
+          IMAGE: ${{ steps.acr.outputs.image }}
+        run: |
+          az containerapp update --name "$API_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --image "$IMAGE" --set-env-vars "APP_VERSION=$IMAGE_TAG" --output none
+          az containerapp update --name "$WORKER_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --image "$IMAGE" --set-env-vars "APP_VERSION=$IMAGE_TAG" --output none
+
+      - name: Attendre les nouvelles révisions
+        run: |
+          attendre_revision() {
+            app="$1"
+            for _ in $(seq 1 40); do
+              etat=$(az containerapp show --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --output json)
+              derniere=$(jq -r '.properties.latestRevisionName' <<< "$etat")
+              prete=$(jq -r '.properties.latestReadyRevisionName' <<< "$etat")
+              if [ "$derniere" = "$prete" ]; then
+                echo "$app : révision $derniere prête"
+                return 0
+              fi
+              provisionnement=$(az containerapp revision show --name "$app" --resource-group "$AZURE_RESOURCE_GROUP" --revision "$derniere" --query properties.provisioningState --output tsv 2>/dev/null || echo "inconnu")
+              if [ "$provisionnement" = "Failed" ]; then
+                echo "::error::$app : la révision $derniere a échoué. Journaux : az containerapp logs show --name $app --resource-group $AZURE_RESOURCE_GROUP --revision $derniere"
+                return 1
+              fi
+              echo "$app : révision $derniere en cours ($provisionnement)..."
+              sleep 15
+            done
+            echo "::error::$app : la révision $derniere n'est pas prête après 10 minutes."
+            return 1
+          }
+          attendre_revision "$API_APP_NAME"
+          attendre_revision "$WORKER_APP_NAME"
+
+      # Réussit quand /api/health répond 200 avec la version déployée (la base est interrogée par la sonde).
+      - name: Contrôle de santé
+        id: sante
+        run: |
+          fqdn=$(az containerapp show --name "$API_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.configuration.ingress.fqdn --output tsv)
+          url="https://$fqdn"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          for _ in $(seq 1 18); do
+            reponse=$(curl --fail --silent --show-error --max-time 10 "$url/api/health" || true)
+            version=""
+            if [ -n "$reponse" ]; then
+              version=$(jq -r '.version // empty' <<< "$reponse" 2>/dev/null || true)
+            fi
+            if [ "$version" = "$IMAGE_TAG" ]; then
+              echo "Santé OK : $reponse"
+              echo "Déployé : $url (image $IMAGE_REPOSITORY:$IMAGE_TAG)" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "En attente de la version $IMAGE_TAG (réponse : ${reponse:-aucune})..."
+            sleep 10
+          done
+          echo "::error::$url/api/health ne renvoie pas la version $IMAGE_TAG après 3 minutes."
+          exit 1
+
+      # ACR Basic : 10 Go inclus et pas de politique de rétention (réservée au SKU Premium).
+      - name: Nettoyer les anciennes images (conserve les 15 plus récentes)
+        continue-on-error: true
+        run: |
+          az acr repository show-tags --name "$ACR_NAME" --repository "$IMAGE_REPOSITORY" --orderby time_desc --output tsv \
+            | tail -n +16 \
+            | while read -r tag; do
+                echo "Suppression de $IMAGE_REPOSITORY:$tag"
+                az acr repository delete --name "$ACR_NAME" --image "$IMAGE_REPOSITORY:$tag" --yes --output none
+              done

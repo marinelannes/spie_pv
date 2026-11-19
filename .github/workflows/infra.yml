@@ -1,0 +1,142 @@
+# Déploiement de l'infrastructure Azure (Bicep), à la demande.
+#   - what-if systématique (aperçu des changements) ;
+#   - création/mise à jour si « appliquer » est coché.
+# L'environnement GitHub choisi (recette / production) fournit l'identité OIDC et les paramètres ; ajouter des
+# relecteurs obligatoires sur l'environnement « production » pour une validation manuelle.
+#
+# Configuration GitHub (par environnement) : voir docs/infra.md.
+#   Secrets   : AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, POSTGRES_ADMIN_PASSWORD
+#   Variables : AZURE_RESOURCE_GROUP (obligatoire) ; ACR_NAME, API_APP_NAME (renseignées après le premier déploiement)
+#
+# Image des Container Apps : tag saisi, sinon tag actuellement déployé sur l'API (le redéploiement de l'infra ne
+# ramène jamais une ancienne image). Sans tag et sans application existante, les Container Apps ne sont pas créées.
+name: Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environnement:
+        description: Environnement cible
+        type: choice
+        options:
+          - recette
+          - production
+        default: recette
+      image_tag:
+        description: Tag de l'image spie-pv (vide = tag actuellement déployé)
+        type: string
+        required: false
+        default: ""
+      appliquer:
+        description: Appliquer le déploiement (sinon what-if uniquement)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: infra-${{ inputs.environnement }}
+  cancel-in-progress: false
+
+jobs:
+  infra:
+    name: Infrastructure ${{ inputs.environnement }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: ${{ inputs.environnement }}
+    env:
+      ENVIRONNEMENT: ${{ inputs.environnement }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      ACR_NAME: ${{ vars.ACR_NAME }}
+      API_APP_NAME: ${{ vars.API_APP_NAME }}
+      IMAGE_REPOSITORY: spie-pv
+    steps:
+      - name: Vérifier la configuration de l'environnement GitHub
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+        run: |
+          if [ -z "$AZURE_RESOURCE_GROUP" ]; then
+            echo "::error::Variable AZURE_RESOURCE_GROUP manquante dans l'environnement GitHub « $ENVIRONNEMENT »."
+            exit 1
+          fi
+          if [ -z "$POSTGRES_ADMIN_PASSWORD" ]; then
+            echo "::error::Secret POSTGRES_ADMIN_PASSWORD manquant dans l'environnement GitHub « $ENVIRONNEMENT »."
+            exit 1
+          fi
+
+      - name: Récupérer le code
+        uses: actions/checkout@v5
+
+      - name: Connexion à Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Déterminer le tag d'image
+        env:
+          TAG_DEMANDE: ${{ inputs.image_tag }}
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt --only-show-errors
+          tag=""
+          if [ -n "$TAG_DEMANDE" ]; then
+            if ! [[ "$TAG_DEMANDE" =~ ^[A-Za-z0-9._-]{1,128}$ ]]; then
+              echo "::error::Tag d'image invalide : « $TAG_DEMANDE »"
+              exit 1
+            fi
+            tag="$TAG_DEMANDE"
+          elif [ -n "$API_APP_NAME" ]; then
+            image=$(az containerapp show --name "$API_APP_NAME" --resource-group "$AZURE_RESOURCE_GROUP" --query "properties.template.containers[0].image" --output tsv 2>/dev/null || true)
+            if [ -n "$image" ]; then tag="${image##*:}"; fi
+          fi
+
+          if [ -n "$tag" ]; then
+            if [ -n "$ACR_NAME" ] && ! az acr repository show --name "$ACR_NAME" --image "$IMAGE_REPOSITORY:$tag" --output none 2>/dev/null; then
+              echo "::error::Image $IMAGE_REPOSITORY:$tag introuvable dans l'ACR $ACR_NAME."
+              exit 1
+            fi
+            echo "Container Apps déployées avec l'image $IMAGE_REPOSITORY:$tag"
+          else
+            echo "::warning::Aucun tag d'image : les Container Apps ne seront ni créées ni modifiées (normal au tout premier déploiement)."
+          fi
+          echo "IMAGE_TAG=$tag" >> "$GITHUB_ENV"
+
+      - name: What-if (aperçu des changements)
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+        run: |
+          az deployment group what-if \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "spiepv-$ENVIRONNEMENT-$GITHUB_RUN_ID" \
+            --parameters "infra/main.$ENVIRONNEMENT.bicepparam" \
+            --exclude-change-types NoChange Ignore
+
+      - name: Déployer
+        if: ${{ inputs.appliquer }}
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+        run: |
+          az deployment group create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "spiepv-$ENVIRONNEMENT-$GITHUB_RUN_ID" \
+            --parameters "infra/main.$ENVIRONNEMENT.bicepparam" \
+            --query properties.outputs \
+            --output json > sorties.json
+
+          {
+            echo "## Sorties du déploiement ($ENVIRONNEMENT)"
+            echo
+            echo "| Sortie | Valeur |"
+            echo "|---|---|"
+            jq -r 'to_entries[] | "| \(.key) | \(.value.value) |"' sorties.json
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "API_URL=$(jq -r '.apiUrl.value' sorties.json)" >> "$GITHUB_ENV"
+
+      - name: Contrôle de santé
+        if: ${{ inputs.appliquer && env.API_URL != '' }}
+        run: |
+          curl --fail --silent --show-error --retry 12 --retry-delay 10 --retry-all-errors --max-time 10 "$API_URL/api/health"
+          echo

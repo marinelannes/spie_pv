@@ -1,0 +1,13 @@
+{
+  "name": "@spie/io-import",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lecture et normalisation des listes d'entrées/sorties Excel. Lot 1.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
