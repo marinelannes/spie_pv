@@ -20,6 +20,7 @@ import { adminUserRoutes } from "./routes/admin-users.js";
 import { adminAffaireRoutes, affaireRoutes } from "./routes/affaires.js";
 import { authRoutes } from "./routes/auth.js";
 import { prepRoutes } from "./routes/prep.js";
+import { pvRoutes } from "./routes/pv.js";
 import { pvVersionRoutes, syncRoutes } from "./routes/terrain.js";
 import type { GenerateurFichiers } from "./services/fichiers.js";
 import { generateurParDefaut } from "./services/generateur-defaut.js";
@@ -104,6 +105,7 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
   await app.register(affaireRoutes, { prefix: "/api/affaires" });
   await app.register(syncRoutes, { prefix: "/api/sync" });
   await app.register(pvVersionRoutes, { prefix: "/api/pv-versions" });
+  await app.register(pvRoutes, { prefix: "/api/pv" });
   await app.register(prepRoutes, { prefix: "/api/prep" });
   await app.register(
     async (admin) => {

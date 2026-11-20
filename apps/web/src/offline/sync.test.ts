@@ -79,6 +79,7 @@ const reference = (pvs = [syncPv()]): SyncReferenceDto => ({
   utilisateur: { id: "u", nom: "Théo" },
   affaires: [SYNC_AFFAIRE],
   pvs,
+  deposes: [],
   modeles: [{ code: "relais", version: "1.0.0" }],
 });
 

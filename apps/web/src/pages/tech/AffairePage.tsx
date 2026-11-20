@@ -1,12 +1,30 @@
+import { comparerIndices, indiceSuivant, type SyncPvDeposeDto } from "@spie/shared";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { CreerRevision } from "../../components/CreerRevision";
 import { BadgePvLocal } from "../../components/statuts";
-import { Alert, Button, Card, Loading, PageHeader } from "../../components/ui";
+import { Alert, Badge, Button, Card, Loading, PageHeader } from "../../components/ui";
 import { useUser } from "../../lib/auth";
 import { formatDateTime } from "../../lib/format";
 import { useLive } from "../../offline/live";
 import { creationSurSite, creerPvSurSite } from "../../offline/pv-local";
+import { deposesHorsTablette } from "../../offline/revisions";
 import { useDb } from "../../offline/SyncProvider";
+
+/** PV déposé dont la révision courante n'est pas sur la tablette : la révision suivante peut y être créée. */
+function PvDeposeHorsTablette({ d }: { d: SyncPvDeposeDto }) {
+  const indice = indiceSuivant(d.indice);
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3" data-testid="pv-depose">
+      <span className="font-mono font-semibold">{d.numero}</span>
+      <span>ind. {d.indice}</span>
+      <Badge tone="green">Déposé dans SharePoint</Badge>
+      {d.reserves.ouvertes > 0 && <Badge tone="amber">{d.reserves.ouvertes} réserve(s) ouverte(s)</Badge>}
+      <span className="text-sm text-slate-600">révision absente de cette tablette</span>
+      {indice && <CreerRevision pvId={d.pvId} numero={d.numero} indice={indice} />}
+    </div>
+  );
+}
 
 /** Équipements d'une affaire et leurs PV ; création sur site d'un PV pour un équipement non préparé (spec §3.2). */
 export function AffairePage() {
@@ -37,7 +55,10 @@ export function AffairePage() {
   };
 
   const a = affaire.affaire;
+  const horsTablette = deposesHorsTablette(affaire, pvs);
   const sansEquipement = pvs.filter((p) => !affaire.equipements.some((e) => e.id === p.equipementId));
+  // PV déposés dont l'équipement n'est plus dans la liste de l'affaire : ils restent accessibles, à part.
+  const deposesSansEquipement = horsTablette.filter((d) => !affaire.equipements.some((e) => e.id === d.equipementId));
   return (
     <>
       <PageHeader title={`${a.numero} — ${a.projet}`} subtitle={`${a.client}${a.site ? ` — ${a.site}` : ""}`} />
@@ -57,7 +78,11 @@ export function AffairePage() {
       )}
       <ul className="space-y-3">
         {affaire.equipements.map((e) => {
-          const siens = pvs.filter((p) => p.equipementId === e.id).sort((x, y) => y.creeLe.localeCompare(x.creeLe));
+          // Les révisions d'un même PV se suivent, la plus récente en premier.
+          const siens = pvs
+            .filter((p) => p.equipementId === e.id)
+            .sort((x, y) => y.numero.localeCompare(x.numero) || comparerIndices(y.indice, x.indice));
+          const deposes = horsTablette.filter((d) => d.equipementId === e.id);
           const surSite = creationSurSite(e, pvs);
           return (
             <li key={e.id}>
@@ -78,8 +103,10 @@ export function AffairePage() {
                       Créer un PV sur site
                     </Button>
                   ) : (
-                    // Un PV listé ci-dessous suffit à comprendre : la raison n'est affichée que dans les autres cas.
-                    siens.length === 0 && <p className="max-w-sm text-sm text-slate-600">{surSite.raison}</p>
+                    // Un PV listé ci-dessous (sur la tablette ou déposé) suffit à comprendre : la raison n'est affichée
+                    // que dans les autres cas.
+                    siens.length === 0 &&
+                    deposes.length === 0 && <p className="max-w-sm text-sm text-slate-600">{surSite.raison}</p>
                   )}
                 </div>
                 {siens.length > 0 && (
@@ -101,14 +128,21 @@ export function AffairePage() {
                     ))}
                   </ul>
                 )}
+                {deposes.map((d) => (
+                  <PvDeposeHorsTablette key={d.pvId} d={d} />
+                ))}
               </Card>
             </li>
           );
         })}
       </ul>
-      {sansEquipement.length > 0 && (
+      {(sansEquipement.length > 0 || deposesSansEquipement.length > 0) && (
         <Card className="mt-4">
           <h2 className="font-bold">Autres PV</h2>
+          <p className="text-sm text-slate-600">PV dont l'équipement ne figure pas dans la liste de l'affaire.</p>
+          {deposesSansEquipement.map((d) => (
+            <PvDeposeHorsTablette key={d.pvId} d={d} />
+          ))}
           <ul>
             {sansEquipement.map((p) => (
               <li key={p.versionId}>

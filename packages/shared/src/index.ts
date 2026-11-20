@@ -17,5 +17,6 @@ export * from "./pv-numero.js";
 export * from "./empreinte.js";
 export * from "./pv-controles.js";
 export * from "./pv-modifications.js";
+export * from "./pv-revisions.js";
 export * from "./pv-statuts.js";
 export * from "./pv-dto.js";

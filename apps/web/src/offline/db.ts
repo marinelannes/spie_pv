@@ -6,6 +6,7 @@ import type {
   PvRelaisData,
   StatutPv,
   SyncAffaireDto,
+  SyncPvDeposeDto,
   UploadPvVersionRequest,
 } from "@spie/shared";
 import Dexie, { type EntityTable } from "dexie";
@@ -31,6 +32,8 @@ export interface LocalAffaire {
   affaire: AffaireDto;
   equipements: EquipementDto[];
   liste: SyncAffaireDto["liste"];
+  /** PV déposés de l'affaire : leur révision suivante peut être créée (spec §3.4). Absent sur les copies anciennes. */
+  deposes?: SyncPvDeposeDto[];
   synchroLe: string;
 }
 

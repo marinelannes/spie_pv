@@ -1,5 +1,6 @@
 import { analyserImport, associationsAReprendre, lireListeEs } from "@spie/io-import";
 import {
+  comparerIndices,
   ioImportRequestSchema,
   type AssociationEquipementInput,
   pointsPourEquipement,
@@ -323,16 +324,23 @@ export async function equipementsDeLAffaire(db: Db, affaireId: string): Promise<
           .where(inArray(pointsEs.feuilleId, feuilleIds))
           .groupBy(pointsEs.feuilleId, pointsEs.tag);
   const statuts = await db
-    .select({ equipementId: pvs.equipementId, statut: versionsPv.statut })
+    .select({ pvId: pvs.id, equipementId: pvs.equipementId, statut: versionsPv.statut, indice: versionsPv.indice })
     .from(pvs)
     .innerJoin(versionsPv, eq(versionsPv.pvId, pvs.id))
     .where(eq(pvs.affaireId, affaireId));
+  // Un PV compte une fois, dans l'état de sa révision courante (indice le plus élevé).
+  const courantes = new Map<string, (typeof statuts)[number]>();
+  for (const s of statuts) {
+    const c = courantes.get(s.pvId);
+    if (!c || comparerIndices(s.indice, c.indice) > 0) courantes.set(s.pvId, s);
+  }
+  const pvsCourants = [...courantes.values()];
 
   return rows.map(({ e, feuilleNom }) => {
     const nbPointsEs = comptes
       .filter((c) => c.feuilleId === e.feuilleEsId && (!e.filtreTag || c.tag === e.filtreTag))
       .reduce((s, c) => s + Number(c.n), 0);
-    const pvsEq = statuts.filter((s) => s.equipementId === e.id);
+    const pvsEq = pvsCourants.filter((s) => s.equipementId === e.id);
     const deposes = pvsEq.filter((s) => s.statut === "depose").length;
     return {
       id: e.id,

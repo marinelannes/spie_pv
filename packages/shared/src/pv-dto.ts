@@ -81,6 +81,32 @@ export interface PvResumeDto {
   /** Numéro identique à celui d'un autre PV de l'affaire (spec §4.1 : alerte administrateur). */
   alerteDoublon: boolean;
   depots: DepotDto[];
+  /** Nombre de révisions du PV (1 : seule la révision d'origine existe). */
+  nbVersions: number;
+  /** Récapitulatif des réserves de la version courante (spec §4.3). */
+  reserves: RecapReserves;
+  /** Indice de la révision qui peut être créée (PV déposé, spec §3.4), null sinon. */
+  revisionSuivante: string | null;
+}
+
+export interface RecapReserves {
+  ouvertes: number;
+  levees: number;
+}
+
+/** Une révision du PV dans l'historique (spec §3.4 : les révisions précédentes restent, inchangées). */
+export interface VersionHistoriqueDto {
+  versionId: string;
+  indice: string;
+  statut: StatutPv;
+  statutDocument: StatutDocument | null;
+  /** Date et description reprises du tableau des révisions. */
+  date: string;
+  modifications: string;
+  signeLe: string | null;
+  signePar: string | null;
+  reserves: RecapReserves;
+  depots: DepotDto[];
 }
 
 export interface PvDetailDto extends PvResumeDto {
@@ -88,6 +114,55 @@ export interface PvDetailDto extends PvResumeDto {
   donneesPreparees: PvRelaisData | null;
   modifications: ModificationTracee[];
   empreinte: string | null;
+  /** Toutes les révisions, de la plus ancienne à la plus récente. */
+  historique: VersionHistoriqueDto[];
+}
+
+// --- Révisions et réserves (spec §3.4, §4.3, lot 2) ---------------------------------------------------------------
+
+/** Création de la révision suivante : la description alimente le tableau des révisions. */
+export const createRevisionRequestSchema = z.object({
+  modifications: z.string().trim().min(1, "Décrivez la modification.").max(500),
+  /**
+   * Le demandeur complétera lui-même la révision (création depuis la tablette) : il devient l'un des techniciens
+   * du PV, quel que soit son rôle, comme pour un PV créé sur site. Faux quand le bureau prépare la réouverture.
+   */
+  affecter: z.boolean().default(false),
+});
+export type CreateRevisionRequest = z.input<typeof createRevisionRequestSchema>;
+
+export const reservesQuerySchema = z.object({
+  affaireId: uuid.optional(),
+  statut: z.enum(["ouverte", "levee"]).optional(),
+  criticite: z.enum(["bloquante", "non_bloquante", "aucune"]).optional(),
+});
+export type ReservesQuery = z.infer<typeof reservesQuerySchema>;
+
+/** Réserve dans le suivi du back-office : état à la dernière révision signée du PV. */
+export interface ReserveSuiviDto {
+  id: string;
+  pvId: string;
+  versionId: string;
+  numeroPv: string;
+  /** Indice de la dernière révision signée, dont la réserve reflète l'état. */
+  indicePv: string;
+  affaireId: string;
+  affaireNumero: string;
+  equipementTag: string | null;
+  numero: number;
+  controle: string;
+  description: string;
+  criticite: "bloquante" | "non_bloquante" | null;
+  responsable: string;
+  /** AAAA-MM-JJ, vide si non renseignée. */
+  datePrevue: string;
+  statut: "ouverte" | "levee";
+  indiceCreation: string;
+  levee: { date: string; commentaire: string; indice: string } | null;
+  /** Ouverte et date prévue de levée dépassée. */
+  enRetard: boolean;
+  /** Une révision suivante est en préparation ou en cours de saisie (indice), null sinon. */
+  revisionEnCours: string | null;
 }
 
 export const createPvRequestSchema = z.object({ affaireId: uuid, equipementId: uuid });
@@ -144,6 +219,26 @@ export interface SyncPvDto {
   creeLe: string;
   /** Dernière modification au bureau : la tablette remplace sa copie si la saisie n'a pas commencé. */
   misAJourLe: string;
+  /**
+   * Base de comparaison des valeurs pré-remplies quand elle diffère de `donnees` : pour une révision, la préparation
+   * d'origine (null si le PV a été créé sur site). Absent : `donnees` est la préparation.
+   */
+  donneesPreparees?: PvRelaisData | null;
+}
+
+/**
+ * PV déposé d'une affaire de l'utilisateur : permet de créer la révision suivante depuis la tablette même quand
+ * la copie locale du PV n'y est plus (spec §3.4, §6.3).
+ */
+export interface SyncPvDeposeDto {
+  pvId: string;
+  versionId: string;
+  numero: string;
+  indice: string;
+  affaireId: string;
+  equipementId: string | null;
+  deposeLe: string | null;
+  reserves: RecapReserves;
 }
 
 export interface SyncReferenceDto {
@@ -151,6 +246,8 @@ export interface SyncReferenceDto {
   utilisateur: { id: string; nom: string };
   affaires: SyncAffaireDto[];
   pvs: SyncPvDto[];
+  /** PV dont la révision courante est déposée (révision suivante possible). */
+  deposes: SyncPvDeposeDto[];
   modeles: { code: string; version: string }[];
 }
 

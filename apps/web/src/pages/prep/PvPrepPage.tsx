@@ -9,17 +9,19 @@ import {
   type PvRelaisData,
   type PvResumeDto,
   type SectionRelaisId,
+  type SyncPvDto,
   type TypeFichier,
 } from "@spie/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { Link, useParams } from "react-router";
+import { ChampModification } from "../../components/CreerRevision";
 import { BadgeStatutPv, BadgesDepots, LiensSharePoint } from "../../components/statuts";
 import { Alert, Badge, Button, Card, Loading, PageHeader, Table, Td } from "../../components/ui";
 import { api, errorMessage } from "../../lib/api";
 import { useUser } from "../../lib/auth";
 import { downloadFile } from "../../lib/files";
-import { formatDateTime } from "../../lib/format";
+import { formatDateIso, formatDateTime } from "../../lib/format";
 import type { MajPv } from "../../pv/editor/context";
 import { PvEditor } from "../../pv/editor/PvEditor";
 
@@ -46,6 +48,8 @@ function PvPrep({ pv }: { pv: PvDetailDto }) {
   const [modifie, setModifie] = useState(false);
   const [section, setSection] = useState<SectionRelaisId>("generalites");
   const preparation = pv.statut === "prepare";
+  // Révision B ou suivante : elle porte l'historique de son PV, elle ne se duplique pas (spec §3.4).
+  const revision = pv.nbVersions > 1;
   const maj: MajPv = useCallback((fn) => {
     setModifie(true);
     setDonnees((d) => fn(d));
@@ -93,11 +97,13 @@ function PvPrep({ pv }: { pv: PvDetailDto }) {
       {preparation ? (
         <div className="grid gap-5 lg:grid-cols-2">
           <Affectations pv={pv} affaire={affaire.data} />
-          <Duplication pv={pv} affaire={affaire.data} />
+          {revision ? <RevisionEnPreparation pv={pv} /> : <Duplication pv={pv} affaire={affaire.data} />}
         </div>
       ) : (
         <Reception pv={pv} />
       )}
+      {pv.revisionSuivante && <NouvelleRevision pv={pv} indice={pv.revisionSuivante} />}
+      {revision && <Historique pv={pv} />}
 
       <PvEditor
         donnees={donnees}
@@ -254,6 +260,133 @@ function Duplication({ pv, affaire }: { pv: PvDetailDto; affaire: PrepAffaireDto
 
 const FICHIERS: TypeFichier[] = ["pdf", "json", "xlsx"];
 
+/** Révision réservée, pas encore commencée sur tablette : elle peut être annulée, ce qui libère l'indice. */
+function RevisionEnPreparation({ pv }: { pv: PvDetailDto }) {
+  const qc = useQueryClient();
+  const annuler = useMutation({
+    mutationFn: () => api<void>(`/api/prep/pv/${pv.pvId}`, { method: "DELETE" }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["prep"] }),
+  });
+  const ligne = pv.donnees.revisions.find((r) => r.indice === pv.indice);
+  return (
+    <Card>
+      <h2 className="mb-1 text-lg font-bold">Révision {pv.indice}</h2>
+      <p className="text-slate-700">
+        Reprend la révision précédente ; les signatures et le statut BPO / BPE / CMS sont à refaire sur site. Les
+        techniciens du PV la reçoivent à leur prochaine synchronisation.
+      </p>
+      <p className="mt-2">
+        <span className="text-slate-600">Modification : </span>
+        {ligne?.modifications || "—"}
+      </p>
+      <p className="mt-1 text-sm text-slate-600">
+        {pv.reserves.ouvertes} réserve(s) ouverte(s), {pv.reserves.levees} levée(s) à reprendre.
+      </p>
+      {annuler.isError && <Alert kind="error">{errorMessage(annuler.error)}</Alert>}
+      <Button
+        className="mt-3"
+        variant="danger"
+        busy={annuler.isPending}
+        disabled={Boolean(pv.saisieCommenceeLe)}
+        title={pv.saisieCommenceeLe ? "La saisie a commencé sur tablette." : undefined}
+        onClick={() => {
+          if (
+            window.confirm(
+              `Annuler la révision ${pv.indice} du PV ${pv.numero} ? Les révisions signées sont conservées.`,
+            )
+          ) {
+            annuler.mutate();
+          }
+        }}
+      >
+        Annuler la révision {pv.indice}
+      </Button>
+    </Card>
+  );
+}
+
+/** PV déposé : préparation de la réouverture au bureau (spec §3.4 étape 6). */
+function NouvelleRevision({ pv, indice }: { pv: PvDetailDto; indice: string }) {
+  const qc = useQueryClient();
+  const [modifications, setModifications] = useState("");
+  const creer = useMutation({
+    mutationFn: () => api<SyncPvDto>(`/api/pv/${pv.pvId}/revisions`, { method: "POST", body: { modifications } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["prep"] }),
+  });
+  return (
+    <Card>
+      <h2 className="mb-1 text-lg font-bold">Créer la révision {indice}</h2>
+      <p className="mb-3 text-slate-700">
+        Pour lever des réserves ou corriger le PV. La révision {pv.indice} reste dans SharePoint, inchangée ; la
+        révision {indice} est envoyée aux techniciens du PV, qui la complètent et la font signer sur site.
+        {pv.reserves.ouvertes > 0 && ` ${pv.reserves.ouvertes} réserve(s) ouverte(s) sur ce PV.`}
+      </p>
+      <ChampModification valeur={modifications} onChange={setModifications} />
+      {creer.isError && (
+        <div className="mt-2">
+          <Alert kind="error">{errorMessage(creer.error)}</Alert>
+        </div>
+      )}
+      <Button className="mt-3" busy={creer.isPending} disabled={!modifications.trim()} onClick={() => creer.mutate()}>
+        Créer la révision {indice}
+      </Button>
+    </Card>
+  );
+}
+
+/** Toutes les révisions du PV et leurs fichiers : les révisions précédentes restent consultables (spec §3.4). */
+function Historique({ pv }: { pv: PvDetailDto }) {
+  const [erreur, setErreur] = useState<string | null>(null);
+  return (
+    <Card>
+      <h2 className="mb-2 text-lg font-bold">Révisions du PV</h2>
+      <Table head={["Rév.", "Date", "Modification", "Statut", "Réserves", "Fichiers"]}>
+        {[...pv.historique].reverse().map((h) => (
+          <tr key={h.versionId} className="align-top">
+            <Td className="text-lg font-bold">{h.indice}</Td>
+            <Td className="text-sm">{formatDateIso(h.date) || "—"}</Td>
+            <Td className="text-sm">{h.modifications || "—"}</Td>
+            <Td>
+              <BadgeStatutPv statut={h.indice === pv.indice ? statutSuivi(pv) : h.statut} />
+              {h.statutDocument && <div className="mt-1 text-sm font-semibold">{h.statutDocument}</div>}
+              {h.signeLe && (
+                <div className="text-sm text-slate-600">
+                  signé le {formatDateTime(h.signeLe)}
+                  {h.signePar && ` par ${h.signePar}`}
+                </div>
+              )}
+            </Td>
+            <Td className="text-sm">
+              {h.reserves.ouvertes} ouverte(s), {h.reserves.levees} levée(s)
+            </Td>
+            <Td>
+              <BadgesDepots depots={h.depots} />
+              <div className="mt-1 flex flex-wrap gap-x-3">
+                {FICHIERS.filter((f) => h.depots.some((d) => d.fichier === f)).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    className="min-h-12 font-semibold text-brand-700 underline"
+                    onClick={() =>
+                      downloadFile(
+                        `/api/prep/versions/${h.versionId}/fichiers/${f}`,
+                        `${pv.numero}_ind${h.indice}.${f}`,
+                      ).catch((e: unknown) => setErreur(errorMessage(e)))
+                    }
+                  >
+                    {f.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </Td>
+          </tr>
+        ))}
+      </Table>
+      {erreur && <Alert kind="error">{erreur}</Alert>}
+    </Card>
+  );
+}
+
 function Reception({ pv }: { pv: PvDetailDto }) {
   const [erreur, setErreur] = useState<string | null>(null);
   return (
@@ -269,6 +402,16 @@ function Reception({ pv }: { pv: PvDetailDto }) {
           <dd>{pv.statutDocument ?? "—"}</dd>
           <dt className="text-slate-600">Empreinte SHA-256</dt>
           <dd className="break-all font-mono text-sm">{pv.empreinte ?? "—"}</dd>
+          <dt className="text-slate-600">Réserves</dt>
+          <dd>
+            {pv.reserves.ouvertes + pv.reserves.levees === 0 ? (
+              "Aucune"
+            ) : (
+              <Link to={`/reserves?affaireId=${pv.affaireId}`} className="underline">
+                {pv.reserves.ouvertes} ouverte(s), {pv.reserves.levees} levée(s)
+              </Link>
+            )}
+          </dd>
           <dt className="text-slate-600">Dépôts</dt>
           <dd>
             <BadgesDepots depots={pv.depots} />

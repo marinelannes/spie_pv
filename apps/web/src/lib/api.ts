@@ -110,6 +110,14 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
   return (await res.json()) as T;
 }
 
+/** Chaîne de requête (« ?a=1&b=2 ») à partir de filtres ; les filtres vides sont omis. */
+export function queryString(filtres: Record<string, string | undefined>): string {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(filtres)) if (v) p.set(k, v);
+  const s = p.toString();
+  return s ? `?${s}` : "";
+}
+
 /** Message lisible pour une erreur quelconque. */
 export function errorMessage(err: unknown): string {
   if (err instanceof ApiError) return err.message;

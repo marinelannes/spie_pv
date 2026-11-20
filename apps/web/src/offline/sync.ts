@@ -38,7 +38,11 @@ export interface FusionReference {
   aSupprimer: string[];
 }
 
-function pvDepuisReference(dto: SyncPvDto, now: string): LocalPv {
+/** Base de comparaison des valeurs pré-remplies : les données préparées, ou celle que le serveur précise (révision). */
+const prepareesDe = (dto: SyncPvDto) => (dto.donneesPreparees !== undefined ? dto.donneesPreparees : dto.donnees);
+
+/** Copie locale d'un PV préparé au bureau, ou d'une révision que le serveur vient de réserver. */
+export function pvDepuisReference(dto: SyncPvDto, now: string): LocalPv {
   return {
     versionId: dto.versionId,
     pvId: dto.pvId,
@@ -51,7 +55,7 @@ function pvDepuisReference(dto: SyncPvDto, now: string): LocalPv {
     origine: "prepare",
     statut: "prepare",
     donnees: dto.donnees,
-    donneesPreparees: dto.donnees,
+    donneesPreparees: prepareesDe(dto),
     journal: [],
     creeLe: dto.creeLe,
     modifieLe: now,
@@ -99,7 +103,7 @@ export function fusionnerReference(
           equipementId: dto.equipementId,
           modeleVersion: dto.modeleVersion,
           donnees: dto.donnees,
-          donneesPreparees: dto.donnees,
+          donneesPreparees: prepareesDe(dto),
           bureauMisAJourLe: dto.misAJourLe,
           modifieLe: now,
         });
@@ -331,6 +335,7 @@ export class SyncEngine {
       affaire: a.affaire,
       equipements: a.equipements,
       liste: a.liste,
+      deposes: (ref.deposes ?? []).filter((d) => d.affaireId === a.affaire.id),
       synchroLe: iso,
     }));
     await this.db.transaction("rw", this.db.affaires, this.db.pvs, this.db.meta, async () => {

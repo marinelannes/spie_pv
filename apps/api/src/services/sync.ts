@@ -1,4 +1,4 @@
-import { MODELE_RELAIS, MODELE_RELAIS_VERSION, type SyncPvDto, type SyncReferenceDto } from "@spie/shared";
+import { MODELE_RELAIS, MODELE_RELAIS_VERSION, estRevision, type SyncPvDto, type SyncReferenceDto } from "@spie/shared";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { pvAffectations, pvs, versionsPv } from "../db/schema.js";
@@ -6,6 +6,7 @@ import { audit } from "../lib/audit.js";
 import { toAffaireDto } from "../routes/affaires.js";
 import { affairesVisibles } from "./acces.js";
 import { derniereListeDetail, equipementsDeLAffaire } from "./io-listes.js";
+import { pvsDeposes } from "./revisions.js";
 import type { UserRow } from "./users.js";
 
 /**
@@ -49,6 +50,8 @@ export async function referenceSync(db: Db, user: UserRow, now: Date): Promise<S
       equipementId: pv.equipementId,
       statut: v.statut,
       donnees: v.donnees,
+      // Révision : sa base de comparaison est la préparation d'origine, pas ses données (reprises de la précédente).
+      ...(estRevision(v.donnees) ? { donneesPreparees: v.donneesPreparees } : {}),
       creeLe: v.creeLe.toISOString(),
       misAJourLe: v.updatedAt.toISOString(),
     }));
@@ -59,6 +62,10 @@ export async function referenceSync(db: Db, user: UserRow, now: Date): Promise<S
     utilisateur: { id: user.id, nom: user.nom },
     affaires,
     pvs: pvsSync,
+    deposes: await pvsDeposes(
+      db,
+      visibles.map((a) => a.id),
+    ),
     modeles: [{ code: MODELE_RELAIS, version: MODELE_RELAIS_VERSION }],
   };
 }

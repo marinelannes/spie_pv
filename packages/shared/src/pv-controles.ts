@@ -212,6 +212,28 @@ export function controlesAvantSignature(d: PvRelaisData, opts: OptionsControles 
     }
   }
 
+  // Révision B et suivantes (spec §3.4) : la modification est décrite dans le tableau des révisions.
+  const revision = d.revisions.find((r) => r.indice === d.entete.indice);
+  if (d.revisions.length > 1 && revision && revision.modifications.trim() === "") {
+    out.push({
+      ref: "revisions.modifications",
+      section: "generalites",
+      message: `Révision ${d.entete.indice} : description de la modification non renseignée.`,
+      bloquant: true,
+    });
+  }
+  // Levée de réserve (spec §4.3) : datée.
+  for (const r of d.reserves) {
+    if (r.statut === "levee" && !r.levee?.date) {
+      out.push({
+        ref: `reserve.${r.id}`,
+        section: "observations",
+        message: `Réserve n°${r.numero} : date de levée non renseignée.`,
+        bloquant: true,
+      });
+    }
+  }
+
   if (d.conclusion.materiel === null) {
     out.push({
       ref: "conclusion",

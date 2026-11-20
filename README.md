@@ -1,7 +1,8 @@
 # spie-pv — Plateforme tablette de saisie des PV SPIE
 
 Monorepo de la PWA technicien, du back-office et de l'API décrits dans [`../spec.md`](../spec.md) (v0.4).
-Ce dépôt contient le **lot 0 — Socle** et le **lot 1 — PV de test relais de protection** (spec §11).
+Ce dépôt contient le **lot 0 — Socle**, le **lot 1 — PV de test relais de protection** et le **lot 2 — Révisions et
+réserves** (spec §11).
 
 ## Lot 0 — contenu
 
@@ -70,6 +71,31 @@ synchronisation de la tablette, serveur coupé, saisie (relevés, NC transformé
 signatures hors ligne, puis dépôt automatique des PDF / JSON / XLSX au retour du serveur. Deux défauts trouvés et corrigés :
 l'indicateur « Prêt pour le hors ligne » ne se mettait pas à jour, et une session ouverte hors ligne ne se rétablissait pas
 seule au retour du réseau.
+
+## Lot 2 — contenu
+
+Révisions et réserves (spec §3.4, §4.3).
+
+- **Révision suivante** : `POST /api/pv/{id}/revisions` (technicien, préparateur ou administrateur de l'affaire), à
+  partir d'un PV **déposé**. Le serveur réserve l'indice (A → B … Z) : tant que la révision n'est pas déposée, aucune
+  autre ne peut être créée. Les données sont reprises ; signatures et statut BPO / BPE / CMS sont vidés ; une ligne est
+  ajoutée au tableau des révisions (« Validé par » et « Approuvé par » repris, description saisie à la création).
+- **Tablette** : « Créer la révision B » depuis un PV déposé (réseau requis), y compris quand la copie locale du PV a
+  été retirée de la tablette (les PV déposés de l'affaire arrivent avec la synchronisation). La révision se remplit et
+  se signe ensuite hors ligne, comme un PV préparé.
+- **Bureau** : création de la révision depuis le détail du PV, annulation d'une révision non commencée (l'indice est
+  libéré, les révisions signées ne sont jamais supprimées), historique des révisions avec leurs fichiers.
+- **Levée de réserves** : dans l'éditeur, « Lever la réserve » (date, commentaire, indice de la révision qui lève). Une
+  réserve d'une révision précédente ne se supprime pas ; une levée ne s'annule que dans la révision qui l'a prononcée.
+- **Intégrité** : à la réception d'une révision, le serveur refuse un tableau des révisions réécrit, une réserve
+  disparue ou une levée antérieure modifiée (`controlesRevision`, `packages/shared`).
+- **Suivi des réserves** (`/reserves`, `GET /api/prep/reserves`) : état à la dernière révision signée de chaque PV,
+  filtres affaire / statut / criticité, réserves en retard, révision en cours.
+- Migration `0002_lot2_reserves` : responsable, échéance et levée dans la table `reserve`.
+
+**Critère de fin du lot 2** : « une réserve levée en révision B, les révisions A et B présentes dans SharePoint ».
+Vérifié en local le 20/11/2026 (SharePoint simulé) par `apps/api/test/revisions.test.ts` et par un essai dans le
+navigateur ; reste à constater sur le SharePoint réel (points ouverts n°1 à 3).
 
 ## Démarrer en local
 

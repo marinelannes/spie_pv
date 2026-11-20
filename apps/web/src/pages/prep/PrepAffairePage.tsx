@@ -103,7 +103,11 @@ export function PrepAffairePage() {
             <TablePv
               pvs={pvs}
               onSupprimer={(p) => {
-                if (window.confirm(`Supprimer le PV préparé ${p.numero} ?`)) supprimer.mutate(p.pvId);
+                const question =
+                  p.nbVersions > 1
+                    ? `Annuler la révision ${p.indice} du PV ${p.numero} ? Les révisions signées sont conservées.`
+                    : `Supprimer le PV préparé ${p.numero} ?`;
+                if (window.confirm(question)) supprimer.mutate(p.pvId);
               }}
             />
           )}
@@ -314,11 +318,19 @@ export function TablePv({ pvs, onSupprimer }: { pvs: readonly PvResumeDto[]; onS
             {p.alerteDoublon && <Badge tone="red">Numéro en double</Badge>}
             {p.depots.some((d) => d.statut === "erreur") && <Badge tone="red">Dépôt en erreur</Badge>}
             {p.statut === "depose" && <BadgesDepots depots={p.depots} />}
+            {p.reserves.ouvertes > 0 && (
+              <div className="mt-1">
+                <Badge tone="amber">{p.reserves.ouvertes} réserve(s) ouverte(s)</Badge>
+              </div>
+            )}
+            {p.reserves.levees > 0 && (
+              <div className="mt-1 text-green-800">{p.reserves.levees} réserve(s) levée(s)</div>
+            )}
           </Td>
           <Td>
             {onSupprimer && p.statut === "prepare" && !p.saisieCommenceeLe && (
               <Button variant="ghost" onClick={() => onSupprimer(p)}>
-                Supprimer
+                {p.nbVersions > 1 ? "Annuler la révision" : "Supprimer"}
               </Button>
             )}
           </Td>

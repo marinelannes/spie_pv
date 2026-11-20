@@ -290,6 +290,11 @@ export const reserves = pgTable(
     description: text("description").notNull().default(""),
     indiceCreation: text("indice_creation").notNull(),
     indiceLevee: text("indice_levee"),
+    /** Suivi des réserves dans le back-office (lot 2) : responsable, échéance (AAAA-MM-JJ), levée. */
+    responsable: text("responsable").notNull().default(""),
+    datePrevue: text("date_prevue").notNull().default(""),
+    dateLevee: text("date_levee"),
+    commentaireLevee: text("commentaire_levee"),
   },
   (t) => [unique("reserve_version_numero_uq").on(t.versionId, t.numero), index("reserve_pv_idx").on(t.pvId)],
 );

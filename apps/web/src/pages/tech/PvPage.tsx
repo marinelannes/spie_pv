@@ -1,6 +1,7 @@
 import { controlesAvantSignature, versionFigee, type PvRelaisData, type SectionRelaisId } from "@spie/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { CreerRevision } from "../../components/CreerRevision";
 import { BadgePvLocal, BadgesDepots, LiensSharePoint } from "../../components/statuts";
 import { Alert, Button, Loading } from "../../components/ui";
 import { useUser } from "../../lib/auth";
@@ -16,6 +17,7 @@ import {
   retirerPvClotAilleurs,
   supprimerBrouillonSite,
 } from "../../offline/pv-local";
+import { revisionACreer, revisionLocaleSuivante } from "../../offline/revisions";
 import { useDb, useSync } from "../../offline/SyncProvider";
 import type { MajPv } from "../../pv/editor/context";
 import { ListeManquants, PvEditor, estSectionEditable } from "../../pv/editor/PvEditor";
@@ -37,6 +39,40 @@ export function PvPage() {
   if (pv === undefined || affaire === undefined) return <Loading />;
   if (pv === null) return <Alert kind="warning">Ce PV n'est pas sur cette tablette.</Alert>;
   return <EditeurLocal key={pv.versionId} pvInitial={pv} affaire={affaire} />;
+}
+
+/** PV déposé : accès à la révision suivante si elle est sur la tablette, sinon proposition de la créer (spec §3.4). */
+function RevisionSuivante({ pv, affaire }: { pv: LocalPv; affaire: LocalAffaire | null }) {
+  const db = useDb();
+  const versions = useLive(() => db.pvs.where("pvId").equals(pv.pvId).toArray(), [db, pv.pvId]);
+  if (!versions) return null;
+  const suivante = revisionLocaleSuivante(pv, versions);
+  if (suivante) {
+    return (
+      <Alert kind="info">
+        Ce PV a une révision plus récente sur cette tablette :{" "}
+        <Link to={`/pv/${suivante.versionId}`} className="font-semibold underline">
+          ouvrir la révision {suivante.indice}
+        </Link>
+        .
+      </Alert>
+    );
+  }
+  const r = revisionACreer(pv, affaire);
+  if (!r) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
+      <p className="min-w-64 flex-1">
+        <span className="font-bold">Révision suivante.</span>{" "}
+        {r.baseAilleurs &&
+          `La révision ${r.base} de ce PV a été déposée depuis une autre tablette : la révision ${r.indice} en repartira, pas de la révision ${pv.indice} affichée ici. `}
+        {r.reservesOuvertes > 0
+          ? `${r.reservesOuvertes} réserve(s) ouverte(s) : la révision ${r.indice} permet de les lever.`
+          : `Pour corriger ou compléter ce PV, créez la révision ${r.indice}.`}
+      </p>
+      <CreerRevision pvId={pv.pvId} numero={pv.numero} indice={r.indice} />
+    </div>
+  );
 }
 
 function EditeurLocal({ pvInitial, affaire }: { pvInitial: LocalPv; affaire: LocalAffaire | null }) {
@@ -219,6 +255,7 @@ function EditeurLocal({ pvInitial, affaire }: { pvInitial: LocalPv; affaire: Loc
           <LiensSharePoint depots={pv.depots} className="mt-1 flex flex-wrap gap-x-4" />
         </Alert>
       )}
+      {pv.statut === "depose" && <RevisionSuivante pv={pv} affaire={affaire} />}
       {voirManques && modifiable && (
         <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4">
           <ListeManquants manquants={manquants} onAller={allerA} />

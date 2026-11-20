@@ -3,7 +3,11 @@ import {
   CRITICITES,
   CRITICITE_LABELS,
   ajouterObservation,
+  annulerLevee,
+  leveeAnnulable,
+  leverReserve,
   recapReserves,
+  reserveHeritee,
   reserveSupprimable,
   supprimerObservation,
   supprimerReserve,
@@ -11,6 +15,7 @@ import {
   type Criticite,
   type Reserve,
 } from "@spie/shared";
+import { formatDateIso, isoDateParis } from "../../../lib/format";
 import { majItem, useEditeur } from "../context";
 import { Bloc, BoutonPetit, CelluleTexte, ChoixBoutons, JugementBoutons, TexteMultiligne } from "../fields";
 
@@ -19,36 +24,58 @@ import { Bloc, BoutonPetit, CelluleTexte, ChoixBoutons, JugementBoutons, TexteMu
 function LigneReserve({ r }: { r: Reserve }) {
   const { donnees, maj, lectureSeule } = useEditeur();
   const patch = (p: Partial<Reserve>) => maj((d) => ({ ...d, reserves: majItem(d.reserves, r.id, p) }));
+  const levee = r.statut === "levee";
+  // Une réserve levée ne se modifie plus ; la description d'une réserve d'une révision précédente est figée.
+  const heritee = reserveHeritee(donnees, r);
+  const annulable = !lectureSeule && leveeAnnulable(donnees, r);
+  const patchLevee = (p: Partial<NonNullable<Reserve["levee"]>>) => {
+    if (r.levee) patch({ levee: { ...r.levee, ...p } });
+  };
   const supprimer = () => {
     const obs = donnees.observations.filter((o) => o.reserveNumero === r.numero).map((o) => `n°${o.numero}`);
     const garde = obs.length > 0 ? ` L'observation ${obs.join(", ")} est conservée, sans réserve.` : "";
     if (window.confirm(`Supprimer la réserve n°${r.numero} ?${garde}`)) maj((d) => supprimerReserve(d, r.id));
   };
   return (
-    <div className="grid gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 sm:grid-cols-4">
+    <div
+      className={`grid gap-2 rounded-lg border p-3 sm:grid-cols-4 ${
+        levee ? "border-green-300 bg-green-50" : "border-amber-300 bg-amber-50"
+      }`}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-4">
         <p className="font-bold">
           Réserve n°{r.numero} — {r.controle}{" "}
           <span className="font-normal">
-            ({r.statut === "ouverte" ? "ouverte" : "levée"}, indice {r.indiceCreation})
+            ({levee ? `levée à l'indice ${r.levee?.indice ?? "?"}` : "ouverte"}, créée à l'indice {r.indiceCreation})
           </span>
         </p>
-        {!lectureSeule && reserveSupprimable(donnees, r) && (
-          <BoutonPetit danger onClick={supprimer}>
-            Supprimer la réserve
-          </BoutonPetit>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {!lectureSeule && !levee && (
+            <BoutonPetit
+              label={`Lever la réserve n°${r.numero}`}
+              onClick={() => maj((d) => leverReserve(d, r.id, { date: isoDateParis(new Date()) }))}
+            >
+              Lever la réserve
+            </BoutonPetit>
+          )}
+          {!lectureSeule && reserveSupprimable(donnees, r) && (
+            <BoutonPetit danger onClick={supprimer}>
+              Supprimer la réserve
+            </BoutonPetit>
+          )}
+        </div>
       </div>
       <CelluleTexte
         className="sm:col-span-4"
         label={`Réserve ${r.numero} — description`}
         valeur={r.description}
+        disabled={levee || heritee}
         onChange={(description) => patch({ description })}
       />
       <select
         aria-label={`Réserve ${r.numero} — criticité`}
-        disabled={lectureSeule}
-        className="min-h-12 rounded-lg border-2 border-slate-300 bg-white px-2"
+        disabled={lectureSeule || levee}
+        className="min-h-12 rounded-lg border-2 border-slate-300 bg-white px-2 disabled:bg-slate-100"
         value={r.criticite ?? ""}
         onChange={(e) => patch({ criticite: (e.target.value || null) as Criticite | null })}
       >
@@ -61,18 +88,77 @@ function LigneReserve({ r }: { r: Reserve }) {
       </select>
       <CelluleTexte
         label={`Réserve ${r.numero} — responsable de la levée`}
+        placeholder="Responsable de la levée"
         valeur={r.responsable}
+        disabled={levee}
         onChange={(responsable) => patch({ responsable })}
       />
-      <input
-        type="date"
-        aria-label={`Réserve ${r.numero} — date prévue de levée`}
-        disabled={lectureSeule}
-        className="min-h-12 rounded-lg border-2 border-slate-300 bg-white px-2"
-        value={r.datePrevue}
-        onChange={(e) => patch({ datePrevue: e.target.value })}
-      />
+      <label className="flex items-center gap-2 sm:col-span-2">
+        <span className="text-sm text-slate-700">Levée prévue</span>
+        <input
+          type="date"
+          aria-label={`Réserve ${r.numero} — date prévue de levée`}
+          disabled={lectureSeule || levee}
+          className="min-h-12 rounded-lg border-2 border-slate-300 bg-white px-2 disabled:bg-slate-100"
+          value={r.datePrevue}
+          onChange={(e) => patch({ datePrevue: e.target.value })}
+        />
+      </label>
+      {levee && r.levee && (
+        <div className="grid gap-2 border-t border-green-300 pt-2 sm:col-span-4 sm:grid-cols-[auto_1fr_auto]">
+          <label className="flex items-center gap-2">
+            <span className="font-semibold">Levée le</span>
+            <input
+              type="date"
+              aria-label={`Réserve ${r.numero} — date de levée`}
+              disabled={!annulable}
+              className="min-h-12 rounded-lg border-2 border-slate-300 bg-white px-2 disabled:bg-slate-100"
+              value={r.levee.date}
+              onChange={(e) => patchLevee({ date: e.target.value })}
+            />
+          </label>
+          <CelluleTexte
+            label={`Réserve ${r.numero} — commentaire de levée`}
+            placeholder="Commentaire de levée (travaux réalisés, constat…)"
+            valeur={r.levee.commentaire}
+            disabled={!annulable}
+            onChange={(commentaire) => patchLevee({ commentaire })}
+          />
+          {annulable && (
+            <BoutonPetit
+              label={`Annuler la levée de la réserve n°${r.numero}`}
+              onClick={() => maj((d) => annulerLevee(d, r.id))}
+            >
+              Annuler la levée
+            </BoutonPetit>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+/** Réserves en lecture seule (préparation d'une révision au bureau : la levée se fait sur site). */
+function ReservesEnLecture({ reserves }: { reserves: readonly Reserve[] }) {
+  return (
+    <ul className="space-y-2">
+      {reserves.map((r) => (
+        <li key={r.id} className="rounded-lg border border-slate-200 p-3">
+          <p className="font-bold">
+            Réserve n°{r.numero} — {r.controle}{" "}
+            <span className="font-normal">
+              (
+              {r.statut === "levee"
+                ? `levée le ${formatDateIso(r.levee?.date ?? "")} à l'indice ${r.levee?.indice ?? "?"}`
+                : "ouverte"}
+              , créée à l'indice {r.indiceCreation})
+            </span>
+          </p>
+          <p className="text-slate-700">{r.description}</p>
+          {r.levee?.commentaire && <p className="text-sm text-slate-600">Levée : {r.levee.commentaire}</p>}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -86,8 +172,17 @@ export function SectionObservations() {
   };
   if (!site) {
     return (
-      <Bloc titre="12. Observations / Comments">
-        <p className="text-slate-700">Les observations et les réserves sont saisies sur site.</p>
+      <Bloc
+        titre="12. Observations / Comments"
+        sousTitre={
+          d.reserves.length > 0 ? `${recap.ouvertes} réserve(s) ouverte(s), ${recap.levees} levée(s).` : undefined
+        }
+      >
+        <p className="text-slate-700">
+          Les observations et les réserves sont saisies sur site
+          {d.reserves.length > 0 ? " ; les réserves reprises de la révision précédente s'y lèvent aussi." : "."}
+        </p>
+        {d.reserves.length > 0 && <ReservesEnLecture reserves={d.reserves} />}
       </Bloc>
     );
   }

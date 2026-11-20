@@ -15,6 +15,13 @@
       "when": 1795097918136,
       "tag": "0001_lot1_pv",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795170431925,
+      "tag": "0002_lot2_reserves",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,7 @@ import {
   createPvRequestSchema,
   duplicatePvRequestSchema,
   pvListQuerySchema,
+  reservesQuerySchema,
   setAssociationRequestSchema,
   setPvAffectationsRequestSchema,
   typeFichierSchema,
@@ -14,6 +15,7 @@ import {
   type PrepAffaireDto,
   type PvDetailDto,
   type PvResumeDto,
+  type ReserveSuiviDto,
 } from "@spie/shared";
 import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -44,6 +46,7 @@ import {
   techniciensDeLAffaire,
 } from "../services/pv.js";
 import { CONTENT_TYPES } from "../services/fichiers.js";
+import { reservesSuivi } from "../services/revisions.js";
 import { toAffaireDto } from "./affaires.js";
 
 /** Un classeur de liste E/S de quelques Mo, encodé en base64. */
@@ -236,13 +239,13 @@ export async function prepRoutes(app: FastifyInstance): Promise<void> {
   app.delete("/pv/:pvId", async (req, reply) => {
     const { pvId } = pvParams.parse(req.params);
     await pvAccessible(req, pvId);
-    const pv = await supprimerPvPrepare(db, pvId);
+    const { pv, indiceAnnule } = await supprimerPvPrepare(db, pvId);
     await audit(db, {
-      action: "pv.supprime",
+      action: indiceAnnule ? "pv.revision_annulee" : "pv.supprime",
       actorId: currentUser(req).id,
       targetType: "pv",
       targetId: pvId,
-      details: { numero: pv.numero },
+      details: indiceAnnule ? { numero: pv.numero, indice: indiceAnnule } : { numero: pv.numero },
       ip: req.ip,
     });
     return reply.status(204).send();
@@ -292,6 +295,22 @@ export async function prepRoutes(app: FastifyInstance): Promise<void> {
     });
     reply.status(201);
     return crees;
+  });
+
+  // --- Réserves (spec §4.3, lot 2) --------------------------------------------------------------------------------
+
+  /** Suivi des réserves : état à la dernière révision signée de chaque PV des affaires accessibles. */
+  app.get("/reserves", async (req): Promise<ReserveSuiviDto[]> => {
+    const q = reservesQuerySchema.parse(req.query);
+    const user = currentUser(req);
+    let affaireIds: string[];
+    if (q.affaireId) {
+      await assertAffairePrep(db, user, q.affaireId);
+      affaireIds = [q.affaireId];
+    } else {
+      affaireIds = (await affairesVisibles(db, user)).map((a) => a.id);
+    }
+    return reservesSuivi(db, { affaireIds, statut: q.statut, criticite: q.criticite, now: ctx.now() });
   });
 
   /** Consultation des fichiers produits (copie d'archive), spec §4.6 « consultation du PDF ». */

@@ -9,7 +9,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import { Alert, Loading, PageHeader, Select } from "../../components/ui";
-import { api, errorMessage } from "../../lib/api";
+import { api, errorMessage, queryString } from "../../lib/api";
 import { TablePv } from "./PrepAffairePage";
 
 export interface FiltresSuivi {
@@ -21,10 +21,7 @@ export interface FiltresSuivi {
 
 /** Chaîne de requête de `GET /api/prep/pv` (filtres vides omis). */
 export function querySuivi(f: FiltresSuivi): string {
-  const p = new URLSearchParams();
-  for (const [k, v] of Object.entries(f)) if (v) p.set(k, v);
-  const s = p.toString();
-  return s ? `?${s}` : "";
+  return queryString({ ...f });
 }
 
 /**

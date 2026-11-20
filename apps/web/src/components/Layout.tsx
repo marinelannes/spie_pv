@@ -5,6 +5,7 @@ import { useOnline } from "../lib/online";
 import { useLive } from "../offline/live";
 import { SyncProvider, useDb } from "../offline/SyncProvider";
 import { useDepotsEnErreur } from "../pages/admin/DepotsPage";
+import { LogoSpie } from "./LogoSpie";
 import { Alert, Button, Loading } from "./ui";
 
 /**
@@ -106,8 +107,8 @@ function Cadre() {
       <header className="bg-brand-700 text-white">
         {/* Plus large que le contenu : la barre complète de l'administrateur tient sur une ligne dès 1280 px. */}
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2">
-          <Link to="/" className="flex min-h-12 items-center gap-2 text-lg font-bold">
-            <img src="/favicon.svg" alt="" className="size-8" /> PV SPIE
+          <Link to="/" className="flex min-h-12 items-center gap-3 text-lg font-bold" aria-label="PV SPIE — accueil">
+            <LogoSpie cartouche className="h-6" /> PV
           </Link>
           {!user.mustChangePassword && (
             <nav className="flex flex-wrap gap-1" aria-label="Navigation principale">
@@ -121,6 +122,9 @@ function Cadre() {
                   </NavLink>
                   <NavLink to="/suivi" className={navClass}>
                     Suivi
+                  </NavLink>
+                  <NavLink to="/reserves" className={navClass}>
+                    Réserves
                   </NavLink>
                 </>
               )}

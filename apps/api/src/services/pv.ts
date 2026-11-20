@@ -3,16 +3,22 @@ import {
   MODELE_RELAIS_VERSION,
   avancementEs,
   creerPvRelais,
+  estRevision,
+  indiceSuivant,
   modelePvEquipement,
   numeroPv,
   pointsEsDepuisListe,
+  recapReserves,
   statutSuivi,
+  trierParIndice,
+  versionCourante,
   type DepotDto,
   type PvDetailDto,
   type PvRelaisData,
   type PvResumeDto,
   type StatutPv,
   type TechnicienDto,
+  type VersionHistoriqueDto,
 } from "@spie/shared";
 import { and, asc, count, eq, inArray, ne } from "drizzle-orm";
 import type { Db } from "../db/client.js";
@@ -143,7 +149,7 @@ export async function chargerPv(db: Db, pvId: string): Promise<{ pv: PvRow; vers
   const [pv] = await db.select().from(pvs).where(eq(pvs.id, pvId));
   if (!pv) throw notFound("PV introuvable.");
   const versions = await db.select().from(versionsPv).where(eq(versionsPv.pvId, pvId));
-  const version = versions.sort((a, b) => a.indice.localeCompare(b.indice)).at(-1);
+  const version = versionCourante(versions);
   if (!version) throw notFound("PV sans version.");
   return { pv, version };
 }
@@ -154,17 +160,39 @@ export async function majPvPrepare(db: Db, pvId: string, donnees: PvRelaisData, 
   if (version.statut !== "prepare") throw conflict("Ce PV n'est plus modifiable au bureau : il a été signé sur site.");
   await db
     .update(versionsPv)
-    .set({ donnees, donneesPreparees: donnees, listeEsId: donnees.es.listeId, updatedAt: now })
+    // Révision : la base de comparaison reste la préparation d'origine (ce que le bureau y change est une modification).
+    .set({
+      donnees,
+      ...(estRevision(version.donnees) ? {} : { donneesPreparees: donnees }),
+      listeEsId: donnees.es.listeId,
+      updatedAt: now,
+    })
     .where(eq(versionsPv.id, version.id));
 }
 
-export async function supprimerPvPrepare(db: Db, pvId: string): Promise<PvRow> {
+/**
+ * Suppression d'un PV préparé. Pour une révision B ou suivante, seule cette révision est annulée (l'indice est
+ * libéré, spec §3.4) : les révisions signées et leurs fichiers ne sont jamais supprimés.
+ */
+export async function supprimerPvPrepare(db: Db, pvId: string): Promise<{ pv: PvRow; indiceAnnule: string | null }> {
   const { pv, version } = await chargerPv(db, pvId);
   if (version.statut !== "prepare") throw conflict("Seul un PV préparé, non signé, peut être supprimé.");
   if (version.saisieCommenceeLe)
     throw conflict("La saisie de ce PV a commencé sur tablette : il ne peut plus être supprimé.");
+  if ((await nombreDeVersions(db, pvId)) > 1) {
+    await db.delete(versionsPv).where(eq(versionsPv.id, version.id));
+    return { pv, indiceAnnule: version.indice };
+  }
   await db.delete(pvs).where(eq(pvs.id, pvId));
-  return pv;
+  return { pv, indiceAnnule: null };
+}
+
+export async function nombreDeVersions(db: Db, pvId: string): Promise<number> {
+  const [r] = await db
+    .select({ n: count(versionsPv.id) })
+    .from(versionsPv)
+    .where(eq(versionsPv.pvId, pvId));
+  return Number(r?.n ?? 0);
 }
 
 /** Affectation d'un PV à des techniciens (spec §3.1 étape 4) : ils doivent être affectés à l'affaire. */
@@ -214,6 +242,9 @@ export async function dupliquerPv(
   },
 ): Promise<string[]> {
   if (args.source.version.statut !== "prepare") throw conflict("Seul un PV préparé (non signé) peut être dupliqué.");
+  if ((await nombreDeVersions(db, args.source.pv.id)) > 1) {
+    throw conflict("Une révision ne se duplique pas : elle porte les réserves et l'historique de son PV.");
+  }
   const techniciens = (
     await db
       .select({ userId: pvAffectations.userId })
@@ -365,7 +396,11 @@ async function chargerResumes(db: Db, f: FiltrePv, detail: boolean): Promise<(Pv
   const pvIds = rows.map((r) => r.pv.id);
   const versions = await db.select().from(versionsPv).where(inArray(versionsPv.pvId, pvIds));
   const courante = new Map<string, VersionRow>();
-  for (const v of versions.sort((a, b) => a.indice.localeCompare(b.indice))) courante.set(v.pvId, v);
+  const parPv = new Map<string, VersionRow[]>();
+  for (const v of trierParIndice(versions)) {
+    courante.set(v.pvId, v);
+    parPv.set(v.pvId, [...(parPv.get(v.pvId) ?? []), v]);
+  }
 
   const tech = await db
     .select({ pvId: pvAffectations.pvId, id: utilisateurs.id, nom: utilisateurs.nom })
@@ -376,10 +411,22 @@ async function chargerResumes(db: Db, f: FiltrePv, detail: boolean): Promise<(Pv
   const techParPv = new Map<string, TechnicienDto[]>();
   for (const t of tech) techParPv.set(t.pvId, [...(techParPv.get(t.pvId) ?? []), { id: t.id, nom: t.nom }]);
 
+  // Le détail montre l'historique : les dépôts de toutes les révisions sont alors nécessaires.
   const depotsParVersion = await depotsDeVersions(
     db,
-    [...courante.values()].map((v) => v.id),
+    (detail ? versions : [...courante.values()]).map((v) => v.id),
   );
+  const signataires = new Map<string, string>();
+  if (detail) {
+    const ids = [...new Set(versions.map((v) => v.signePar).filter((x): x is string => x !== null))];
+    if (ids.length > 0) {
+      const us = await db
+        .select({ id: utilisateurs.id, nom: utilisateurs.nom })
+        .from(utilisateurs)
+        .where(inArray(utilisateurs.id, ids));
+      for (const u of us) signataires.set(u.id, u.nom);
+    }
+  }
   const doublons = await numerosEnDoublon(db, [...new Set(rows.map((r) => r.pv.affaireId))]);
 
   const out: (PvResumeDto | PvDetailDto)[] = [];
@@ -412,18 +459,37 @@ async function chargerResumes(db: Db, f: FiltrePv, detail: boolean): Promise<(Pv
       avancementEs: { total: av.total, testees: av.testees, nc: av.nc },
       alerteDoublon: doublons.has(`${r.pv.affaireId}|${r.pv.numero}`),
       depots: depotsParVersion.get(v.id) ?? [],
+      nbVersions: parPv.get(r.pv.id)?.length ?? 1,
+      reserves: recapReserves(v.donnees),
+      revisionSuivante: v.statut === "depose" ? indiceSuivant(v.indice) : null,
     };
-    out.push(
-      detail
-        ? {
-            ...resume,
-            donnees: v.donnees,
-            donneesPreparees: v.donneesPreparees,
-            modifications: v.modifications,
-            empreinte: v.empreinte,
-          }
-        : resume,
-    );
+    if (!detail) {
+      out.push(resume);
+      continue;
+    }
+    const historique: VersionHistoriqueDto[] = (parPv.get(r.pv.id) ?? []).map((h) => {
+      const ligne = h.donnees.revisions.find((x) => x.indice === h.indice);
+      return {
+        versionId: h.id,
+        indice: h.indice,
+        statut: h.statut,
+        statutDocument: h.statutDocument,
+        date: ligne?.date ?? "",
+        modifications: ligne?.modifications ?? "",
+        signeLe: h.signeLe?.toISOString() ?? null,
+        signePar: h.signePar ? (signataires.get(h.signePar) ?? null) : null,
+        reserves: recapReserves(h.donnees),
+        depots: depotsParVersion.get(h.id) ?? [],
+      };
+    });
+    out.push({
+      ...resume,
+      donnees: v.donnees,
+      donneesPreparees: v.donneesPreparees,
+      modifications: v.modifications,
+      empreinte: v.empreinte,
+      historique,
+    });
   }
   return out;
 }

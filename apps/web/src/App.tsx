@@ -16,6 +16,7 @@ import { IoListePage } from "./pages/prep/IoListePage";
 import { PrepAffairePage } from "./pages/prep/PrepAffairePage";
 import { PrepAffairesPage } from "./pages/prep/PrepAffairesPage";
 import { PvPrepPage } from "./pages/prep/PvPrepPage";
+import { ReservesPage } from "./pages/prep/ReservesPage";
 import { SuiviPage } from "./pages/prep/SuiviPage";
 import { AffairePage } from "./pages/tech/AffairePage";
 import { PvPage } from "./pages/tech/PvPage";
@@ -52,6 +53,7 @@ export function App() {
             <Route path="preparation/io-lists/:listeId" element={<IoListePage />} />
             <Route path="preparation/pv/:pvId" element={<PvPrepPage />} />
             <Route path="suivi" element={<SuiviPage />} />
+            <Route path="reserves" element={<ReservesPage />} />
           </Route>
           <Route path="admin" element={<RequireAuth roles={["admin"]} />}>
             <Route index element={<Navigate to="affaires" replace />} />

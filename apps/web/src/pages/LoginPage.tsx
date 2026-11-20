@@ -3,6 +3,7 @@ import { loginRequestSchema, type LoginRequest } from "@spie/shared";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Navigate, useLocation, useNavigate } from "react-router";
+import { LogoSpie } from "../components/LogoSpie";
 import { Alert, Button, Field, Input } from "../components/ui";
 import { errorMessage } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -39,12 +40,10 @@ export function LoginPage() {
   return (
     <main className="flex min-h-dvh items-center justify-center bg-brand-700 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
-        <div className="mb-6 flex items-center gap-3">
-          <img src="/favicon.svg" alt="" className="size-12" />
-          <div>
-            <h1 className="text-2xl font-semibold">PV SPIE</h1>
-            <p className="text-slate-600">Saisie des procès-verbaux</p>
-          </div>
+        <div className="mb-6">
+          <LogoSpie className="h-14" />
+          <h1 className="mt-5 text-2xl font-semibold">Procès-verbaux</h1>
+          <p className="text-slate-600">Saisie des PV sur tablette</p>
         </div>
         <form onSubmit={onSubmit} noValidate className="space-y-5">
           {error && <Alert kind="error">{error}</Alert>}

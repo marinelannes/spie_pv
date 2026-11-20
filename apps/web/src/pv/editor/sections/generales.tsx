@@ -41,7 +41,11 @@ export function SectionGeneralites() {
       </Bloc>
       <Bloc
         titre="Tableau des révisions"
-        sousTitre="« Validé par » et « Approuvé par » sont repris de l'affaire ; « Écrit par » est le signataire par défaut."
+        sousTitre={
+          d.revisions.length > 1
+            ? `Seule la révision ${d.entete.indice} se modifie : les révisions signées ne changent plus.`
+            : "« Validé par » et « Approuvé par » sont repris de l'affaire ; « Écrit par » est le signataire par défaut."
+        }
       >
         <div className="space-y-3">
           {d.revisions.map((r, i) => (
@@ -55,6 +59,7 @@ export function SectionGeneralites() {
                   key={k}
                   label={`Révision ${r.indice} — ${{ date: "date (AAAA-MM-JJ)", ecritPar: "écrit par", validePar: "validé par", approuvePar: "approuvé par" }[k]}`}
                   valeur={r[k]}
+                  disabled={r.indice !== d.entete.indice}
                   onChange={(v) =>
                     maj((x) => ({ ...x, revisions: x.revisions.map((y, j) => (j === i ? { ...y, [k]: v } : y)) }))
                   }
@@ -64,6 +69,7 @@ export function SectionGeneralites() {
                 className="sm:col-span-5"
                 label={`Révision ${r.indice} — modifications`}
                 valeur={r.modifications}
+                disabled={r.indice !== d.entete.indice}
                 onChange={(v) =>
                   maj((x) => ({
                     ...x,
