@@ -7,7 +7,6 @@ import { createSharePointClient } from "./sharepoint/index.js";
 loadDotEnvForDev();
 const config = loadConfig();
 const database = await openDatabase(config.databaseUrl);
-await database.migrate();
 
 const app = await buildApp({
   config,
@@ -19,8 +18,17 @@ const app = await buildApp({
       ? { level: config.logLevel, transport: { target: "pino-pretty", options: { translateTime: "SYS:HH:MM:ss" } } }
       : { level: config.logLevel },
 });
+// Plusieurs réplicas peuvent démarrer ensemble : un seul applique les migrations et crée l'admin initial.
+await database.withStartupLock(async () => {
+  await database.migrate();
+  await bootstrapAdmin(database.db, config, app.log);
+});
 app.log.info({ base: database.kind, sharepoint: config.sharepoint.mode }, "migrations appliquées");
-await bootstrapAdmin(database.db, config, app.log);
+if (config.workerInline) {
+  // Développement (PGlite, un seul processus) : l'API traite elle-même la file des dépôts.
+  app.ctx.traitement.demarrer(config.workerPollMs);
+  app.log.info({ intervalle: config.workerPollMs }, "traitement des dépôts dans le processus de l'API");
+}
 
 const shutdown = async (signal: string) => {
   app.log.info({ signal }, "arrêt");

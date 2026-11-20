@@ -81,6 +81,26 @@ describe("connexion", () => {
     expect((await attempt(PASSWORD)).statusCode).toBe(200);
   });
 
+  it("compte toutes les tentatives simultanées (pas de contournement du verrouillage)", async () => {
+    await seedUser(t.db, { email: "rafale@spie.test", role: "technicien" });
+    const results = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        t.app.inject({
+          method: "POST",
+          url: "/api/auth/login",
+          payload: { email: "rafale@spie.test", password: "faux" },
+        }),
+      ),
+    );
+    expect(results.some((r) => r.statusCode === 423)).toBe(true);
+    const after = await t.app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: { email: "rafale@spie.test", password: PASSWORD },
+    });
+    expect(after.statusCode).toBe(423);
+  });
+
   it("refuse un compte désactivé, y compris avec un jeton d'accès encore valide", async () => {
     const u = await seedUser(t.db, { email: "parti@spie.test", role: "technicien" });
     const { accessToken } = await login(t.app, "parti@spie.test");

@@ -69,7 +69,11 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
-export async function api<T>(path: string, opts: RequestOptions = {}, retried = false): Promise<T> {
+/**
+ * Requête authentifiée brute (téléchargement de fichiers) : jeton d'accès, puis un rafraîchissement de session
+ * et un nouvel essai en cas de 401. Lève ApiError(0, "network") si le serveur est injoignable.
+ */
+export async function apiFetch(path: string, opts: RequestOptions = {}, retried = false): Promise<Response> {
   const headers: Record<string, string> = {};
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
@@ -90,8 +94,13 @@ export async function api<T>(path: string, opts: RequestOptions = {}, retried = 
 
   if (res.status === 401 && !retried && !path.startsWith("/api/auth/")) {
     const session = await refreshSession();
-    if (session) return api<T>(path, opts, true);
+    if (session) return apiFetch(path, opts, true);
   }
+  return res;
+}
+
+export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const res = await apiFetch(path, opts);
   if (!res.ok) {
     const err = await toApiError(res);
     if (res.status === 401) setSession(null);

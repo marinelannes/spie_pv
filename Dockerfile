@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1.7
 # Image unique (spec §8.3) : API + PWA (`node dist/server.js`, défaut) et worker (`node dist/worker.js`).
-# Lot 1 : ajouter Chromium (rendu PDF par Playwright) à l'étape runtime.
 ARG NODE_VERSION=24
 
 FROM node:${NODE_VERSION}-bookworm-slim AS build
@@ -24,9 +23,14 @@ RUN pnpm --filter @spie/web build \
 
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 ARG APP_VERSION=dev
+# Chromium (rendu des PDF par Playwright, spec §8.2) et polices métriquement compatibles Arial (modèle Word).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends chromium fonts-liberation fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production \
     PORT=3000 \
     WEB_DIST_DIR=/app/public \
+    CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium \
     APP_VERSION=${APP_VERSION}
 WORKDIR /app
 COPY --from=build --chown=node:node /out ./

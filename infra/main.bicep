@@ -477,7 +477,8 @@ module worker 'modules/container-app.bicep' = if (deployApps) {
     ]
     env: appEnv
     secrets: appSecrets
-    // Pas d'ingress : le worker consomme la file pg-boss dans PostgreSQL.
+    // Pas d'ingress : le worker scrute la file des dépôts (table depot) dans PostgreSQL, produit les PDF (Chromium)
+    // et dépose les fichiers dans SharePoint.
     ingressEnabled: false
     cpu: workerCpu
     memory: workerMemory

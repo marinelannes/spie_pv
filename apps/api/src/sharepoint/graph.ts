@@ -3,6 +3,7 @@ import { DRIVE_ROOT_ITEM_ID, type DriveItemDto, type UploadedFileDto } from "@sp
 import {
   SharePointConflictError,
   SharePointError,
+  type ChildItem,
   type FolderInfo,
   type SharePointClient,
   type SiteInfo,
@@ -151,6 +152,35 @@ export class GraphSharePointClient implements SharePointClient {
     const item =
       args.content.byteLength < this.simpleUploadLimit ? await this.simpleUpload(args) : await this.sessionUpload(args);
     return { id: item.id, name: item.name, size: item.size ?? args.content.byteLength, webUrl: item.webUrl ?? null };
+  }
+
+  async getChild(driveId: string, parentItemId: string, name: string): Promise<ChildItem | null> {
+    const res = await this.request(
+      "GET",
+      `/drives/${enc(driveId)}/items/${enc(parentItemId)}:/${enc(name)}?$select=id,name,size,webUrl,folder,file`,
+      {},
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) throw await toError(res, "recherche d'un élément");
+    const item = (await res.json()) as GraphDriveItem;
+    return {
+      id: item.id,
+      name: item.name,
+      isFolder: Boolean(item.folder),
+      size: item.size ?? null,
+      webUrl: item.webUrl ?? null,
+    };
+  }
+
+  async createFolder(driveId: string, parentItemId: string, name: string): Promise<FolderInfo> {
+    const res = await this.request("POST", `/drives/${enc(driveId)}/items/${enc(parentItemId)}/children`, {
+      body: JSON.stringify({ name, folder: {}, "@microsoft.graph.conflictBehavior": "fail" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    if (res.status === 409) throw new SharePointConflictError(name);
+    if (!res.ok) throw await toError(res, "création du dossier");
+    const item = (await res.json()) as GraphDriveItem;
+    return this.getFolder(driveId, item.id);
   }
 
   private async simpleUpload(args: UploadArgs): Promise<GraphDriveItem> {

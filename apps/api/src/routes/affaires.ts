@@ -14,8 +14,9 @@ import { currentUser } from "../context.js";
 import type { Db } from "../db/client.js";
 import { affaires, affectations, utilisateurs } from "../db/schema.js";
 import { audit } from "../lib/audit.js";
-import { badRequest, conflict, notFound } from "../lib/errors.js";
+import { HttpError, badRequest, conflict, notFound } from "../lib/errors.js";
 import { requireAuth } from "../plugins/auth.js";
+import { SharePointError, type FolderInfo, type SharePointClient } from "../sharepoint/types.js";
 
 type AffaireRow = typeof affaires.$inferSelect;
 
@@ -44,12 +45,27 @@ export function toAffaireDto(a: AffaireRow): AffaireDto {
   };
 }
 
-function dossierColumns(d: DossierSharePoint | null) {
+/**
+ * Colonnes du dossier SharePoint cible. Le dossier envoyé par le navigateur est vérifié auprès de SharePoint :
+ * on enregistre l'identifiant, le chemin et l'URL que SharePoint renvoie, jamais ceux du client.
+ */
+async function dossierColumns(sp: SharePointClient | null, d: DossierSharePoint | null) {
+  if (!d) return { sharepointDriveId: null, sharepointItemId: null, sharepointPath: null, sharepointWebUrl: null };
+  if (!sp) throw new HttpError(503, "sharepoint_not_configured", "SharePoint n'est pas configuré sur ce serveur.");
+  let folder: FolderInfo;
+  try {
+    folder = await sp.getFolder(d.driveId, d.itemId);
+  } catch (err) {
+    if (err instanceof SharePointError && (err.status === 400 || err.status === 404)) {
+      throw badRequest(`Dossier SharePoint invalide : ${err.message}`);
+    }
+    throw err;
+  }
   return {
-    sharepointDriveId: d?.driveId ?? null,
-    sharepointItemId: d?.itemId ?? null,
-    sharepointPath: d?.path ?? null,
-    sharepointWebUrl: d?.webUrl ?? null,
+    sharepointDriveId: folder.driveId,
+    sharepointItemId: folder.itemId,
+    sharepointPath: folder.path,
+    sharepointWebUrl: folder.webUrl,
   };
 }
 
@@ -101,7 +117,7 @@ export async function adminAffaireRoutes(app: FastifyInstance): Promise<void> {
     const { dossierSharePoint, ...rest } = input;
     const [created] = await db
       .insert(affaires)
-      .values({ ...rest, ...dossierColumns(dossierSharePoint) })
+      .values({ ...rest, ...(await dossierColumns(ctx.sharepoint, dossierSharePoint)) })
       .returning();
     await audit(db, {
       action: "affaire.created",
@@ -128,22 +144,30 @@ export async function adminAffaireRoutes(app: FastifyInstance): Promise<void> {
     if (changes.numero !== undefined) await assertNumeroLibre(db, changes.numero, id);
 
     const { dossierSharePoint, ...rest } = changes;
+    const dossier = dossierSharePoint !== undefined ? await dossierColumns(ctx.sharepoint, dossierSharePoint) : null;
     await db
       .update(affaires)
-      .set({
-        ...rest,
-        ...(dossierSharePoint !== undefined ? dossierColumns(dossierSharePoint) : {}),
-        updatedAt: ctx.now(),
-      })
+      .set({ ...rest, ...(dossier ?? {}), updatedAt: ctx.now() })
       .where(eq(affaires.id, id));
-    await audit(db, {
-      action: "affaire.updated",
-      actorId: currentUser(req).id,
-      targetType: "affaire",
-      targetId: id,
-      details: { numero: before.numero, champs: Object.keys(changes) },
-      ip: req.ip,
-    });
+    // Journal : seulement les champs réellement modifiés, avec l'ancienne et la nouvelle valeur (le formulaire
+    // renvoie tous les champs, même inchangés).
+    const modifications: Record<string, { avant: unknown; apres: unknown }> = {};
+    for (const [k, v] of Object.entries(rest) as [keyof typeof rest, unknown][]) {
+      if (before[k] !== v) modifications[k] = { avant: before[k], apres: v };
+    }
+    if (dossier && dossier.sharepointItemId !== before.sharepointItemId) {
+      modifications.dossierSharePoint = { avant: before.sharepointPath, apres: dossier.sharepointPath };
+    }
+    if (Object.keys(modifications).length > 0) {
+      await audit(db, {
+        action: "affaire.updated",
+        actorId: currentUser(req).id,
+        targetType: "affaire",
+        targetId: id,
+        details: { numero: before.numero, modifications },
+        ip: req.ip,
+      });
+    }
     return loadDetail(db, id);
   });
 

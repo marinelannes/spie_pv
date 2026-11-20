@@ -2,12 +2,26 @@
   "name": "@spie/templates",
   "version": "0.1.0",
   "private": true,
-  "description": "Rendu des modèles de PV (composants React → HTML/CSS imprimable). Lot 1.",
+  "description": "Rendu des modèles de PV (composants React → HTML/CSS imprimable, Paged.js).",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@spie/shared": "workspace:*",
+    "pagedjs": "^0.4.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "playwright-core": "^1.49.1",
+    "vitest": "^3.0.5"
   }
 }

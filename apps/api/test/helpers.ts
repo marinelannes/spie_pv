@@ -10,7 +10,11 @@ import { openDatabase, type Db } from "../src/db/client.js";
 import { utilisateurs } from "../src/db/schema.js";
 import { REFRESH_COOKIE } from "../src/routes/auth.js";
 import { createUser } from "../src/services/users.js";
+import { createGenerateurFichiers, type GenerateurFichiers } from "../src/services/fichiers.js";
+import type { TraitementDepots } from "../src/services/traitement.js";
 import { createSharePointClient } from "../src/sharepoint/index.js";
+import type { SharePointClient } from "../src/sharepoint/types.js";
+import { LocalFileArchive } from "../src/storage/archive.js";
 
 export interface TestApp {
   app: FastifyInstance;
@@ -18,10 +22,37 @@ export interface TestApp {
   config: AppConfig;
   dir: string;
   clock: { now: () => Date; advance: (ms: number) => void };
+  sharepoint: SharePointClient | null;
+  archive: LocalFileArchive;
+  traitement: TraitementDepots;
+  /** Nombre de PDF rendus par le faux moteur de rendu. */
+  pdfRendus: () => number;
   close: () => Promise<void>;
 }
 
-export async function createTestApp(env: Record<string, string> = {}): Promise<TestApp> {
+/**
+ * Générateur de test : JSON et XLSX réels, PDF factice (le rendu Chromium est testé à part, test/pdf.test.ts).
+ */
+export function fichiersDeTest(): { fichiers: GenerateurFichiers; pdfRendus: () => number } {
+  let n = 0;
+  const fichiers = createGenerateurFichiers({
+    async render(html: string) {
+      n++;
+      return new TextEncoder().encode(`%PDF-1.7 factice
+${html.length}
+`);
+    },
+    async close() {},
+  });
+  return { fichiers, pdfRendus: () => n };
+}
+
+export interface TestAppOptions {
+  sharepoint?: SharePointClient | null;
+  fichiers?: GenerateurFichiers;
+}
+
+export async function createTestApp(env: Record<string, string> = {}, opts: TestAppOptions = {}): Promise<TestApp> {
   const dir = await mkdtemp(join(tmpdir(), "spie-pv-test-"));
   const config = loadConfig({
     NODE_ENV: "test",
@@ -39,12 +70,17 @@ export async function createTestApp(env: Record<string, string> = {}): Promise<T
       current = new Date(current.getTime() + ms);
     },
   };
+  const sharepoint = opts.sharepoint === undefined ? createSharePointClient(config.sharepoint) : opts.sharepoint;
+  const archive = new LocalFileArchive(join(dir, "archive"));
+  const gen = fichiersDeTest();
   const app = await buildApp({
     config,
     db: database.db,
-    sharepoint: createSharePointClient(config.sharepoint),
+    sharepoint,
     now: clock.now,
     version: "test",
+    archive,
+    fichiers: opts.fichiers ?? gen.fichiers,
   });
   return {
     app,
@@ -52,6 +88,10 @@ export async function createTestApp(env: Record<string, string> = {}): Promise<T
     config,
     dir,
     clock,
+    sharepoint,
+    archive,
+    traitement: app.ctx.traitement,
+    pdfRendus: gen.pdfRendus,
     close: async () => {
       await app.close();
       await database.close();

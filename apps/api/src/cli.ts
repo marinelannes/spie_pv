@@ -20,7 +20,7 @@ const { positionals, values } = parseArgs({
 loadDotEnvForDev();
 const config = loadConfig();
 const database = await openDatabase(config.databaseUrl);
-await database.migrate();
+await database.withStartupLock(() => database.migrate());
 
 try {
   switch (positionals[0]) {

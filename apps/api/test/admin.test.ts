@@ -159,16 +159,30 @@ describe("affaires", () => {
     expect(res.statusCode).toBe(409);
   });
 
-  it("modifie l'affaire et son dossier SharePoint", async () => {
+  it("modifie l'affaire ; le dossier SharePoint enregistré est celui que renvoie SharePoint", async () => {
     const res = await as(admin).patch(`/api/admin/affaires/${affaireId}`, {
       approuveParDefaut: "B. Approbateur",
-      dossierSharePoint: { driveId: "d1", itemId: "i1", path: "Documents / Affaires / A35173", webUrl: null },
+      // Chemin faux envoyé par le client : il est remplacé par le chemin réel.
+      dossierSharePoint: { driveId: "fake-documents", itemId: "root", path: "Chemin inventé", webUrl: null },
     });
     expect(res.statusCode).toBe(200);
     expect(res.json<AffaireDetailDto>()).toMatchObject({
       approuveParDefaut: "B. Approbateur",
-      dossierSharePoint: { driveId: "d1", itemId: "i1", path: "Documents / Affaires / A35173" },
+      dossierSharePoint: { driveId: "fake-documents", itemId: "root", path: "Documents partagés" },
     });
+  });
+
+  it("refuse un dossier SharePoint qui n'existe pas", async () => {
+    const res = await as(admin).patch(`/api/admin/affaires/${affaireId}`, {
+      dossierSharePoint: {
+        driveId: "fake-documents",
+        itemId: Buffer.from("Nexiste/Pas").toString("base64url"),
+        path: "X",
+        webUrl: null,
+      },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.message).toContain("Dossier SharePoint invalide");
   });
 
   it("affecte et désaffecte des comptes", async () => {
@@ -232,5 +246,33 @@ describe("affaires", () => {
 
     const page2 = (await as(admin).get(`/api/admin/audit?limit=2&before=${entries[1]!.id}`)).json<AuditEntryDto[]>();
     expect(page2[0]!.id).toBe(entries[2]!.id);
+  });
+
+  it("« Affaire modifiée » ne cite que les champs réellement modifiés, avec avant / après (anomalie 18)", async () => {
+    const b = (await as(admin).get("/api/admin/affaires"))
+      .json<AffaireListItemDto[]>()
+      .find((a) => a.numero === "B99999")!;
+    const journalAffaire = async () =>
+      (await as(admin).get("/api/admin/audit?limit=200"))
+        .json<AuditEntryDto[]>()
+        .filter((e) => e.action === "affaire.updated" && e.targetId === b.id);
+    const avant = (await journalAffaire()).length;
+    // Le formulaire renvoie tous les champs : seul le client change.
+    const formulaire = {
+      numero: "B99999",
+      client: "Autre client",
+      projet: "Autre projet",
+      site: "",
+      valideParDefaut: "",
+    };
+    expect((await as(admin).patch(`/api/admin/affaires/${b.id}`, formulaire)).statusCode).toBe(200);
+    const [derniere] = await journalAffaire();
+    expect(derniere!.details).toEqual({
+      numero: "B99999",
+      modifications: { client: { avant: "Autre", apres: "Autre client" } },
+    });
+    // Enregistrer sans rien changer : rien dans le journal.
+    await as(admin).patch(`/api/admin/affaires/${b.id}`, formulaire);
+    expect(await journalAffaire()).toHaveLength(avant + 1);
   });
 });

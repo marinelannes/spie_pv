@@ -1,4 +1,4 @@
-/** Actions tracées dans le journal d'audit (spec §4.6, §7.4). Les actions PV arrivent au lot 1. */
+/** Actions tracées dans le journal d'audit (spec §4.6, §7.4). */
 export const AUDIT_ACTIONS = {
   "auth.login": "Connexion",
   "auth.login_failed": "Échec de connexion",
@@ -13,6 +13,21 @@ export const AUDIT_ACTIONS = {
   "affaire.updated": "Affaire modifiée",
   "affaire.affectations": "Affectations modifiées",
   "sharepoint.test_upload": "Dépôt de test SharePoint",
+  "sharepoint.familles": "Paramétrage SharePoint modifié",
+  "io_liste.importee": "Liste E/S importée",
+  "equipement.association": "Feuille E/S d'un équipement modifiée",
+  "pv.prepare": "PV créé (préparation)",
+  "pv.prepare_modifie": "PV préparé modifié",
+  "pv.supprime": "PV préparé supprimé",
+  "pv.duplique": "PV dupliqué",
+  "pv.affectations": "Techniciens du PV modifiés",
+  "pv.saisie_commencee": "Saisie du PV commencée sur tablette",
+  "pv.recu": "PV signé reçu",
+  "pv.doublon_numero": "Numéro de PV en double",
+  "pv.valeurs_modifiees": "Valeurs pré-remplies modifiées sur site",
+  "depot.reussi": "PV déposé dans SharePoint",
+  "depot.erreur": "Dépôt SharePoint en erreur",
+  "depot.relance": "Dépôt SharePoint relancé",
 } as const;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;

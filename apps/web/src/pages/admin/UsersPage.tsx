@@ -71,7 +71,7 @@ function CreateUserForm({ onCreated }: { onCreated: (r: TemporaryPasswordRespons
 
   return (
     <Card>
-      <h2 className="mb-4 text-lg font-bold">Nouveau compte</h2>
+      <h2 className="mb-4 text-lg font-semibold">Nouveau compte</h2>
       <form
         onSubmit={onSubmit}
         noValidate

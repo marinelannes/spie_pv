@@ -18,6 +18,8 @@ export type ApiErrorCode =
   | "forbidden"
   | "not_found"
   | "conflict"
+  | "integrity"
+  | "payload_too_large"
   | "sharepoint_not_configured"
   | "sharepoint_error"
   | "rate_limited"

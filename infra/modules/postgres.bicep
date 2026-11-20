@@ -1,4 +1,4 @@
-// Azure Database for PostgreSQL - Flexible Server : données métier et file de tâches pg-boss.
+// Azure Database for PostgreSQL - Flexible Server : données métier et file des dépôts SharePoint (table depot).
 //
 // Réseau (recette) : accès public + règle « Allow Azure services » (0.0.0.0). ATTENTION : cette règle autorise
 // toute adresse IP sortante d'Azure, y compris d'autres clients Azure ; seuls le mot de passe et TLS protègent

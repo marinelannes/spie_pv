@@ -97,7 +97,7 @@ function AffaireForm({ affaire }: { affaire?: AffaireDetailDto }) {
         </div>
 
         <div className="space-y-2">
-          <p className="font-medium text-slate-800">Dossier SharePoint cible</p>
+          <p className="font-medium text-brand-700">Dossier SharePoint cible</p>
           {picking ? (
             <SharePointFolderPicker
               initial={dossier}
@@ -169,7 +169,7 @@ function Affectations({ affaire }: { affaire: AffaireDetailDto }) {
 
   return (
     <Card>
-      <h2 className="mb-1 text-lg font-bold">Techniciens et préparateurs affectés</h2>
+      <h2 className="mb-1 text-lg font-semibold">Techniciens et préparateurs affectés</h2>
       <p className="mb-4 text-slate-600">Ils voient cette affaire et ses PV sur leur tablette.</p>
       {users.isPending ? (
         <Loading />
@@ -226,13 +226,21 @@ function Archivage({ affaire }: { affaire: AffaireDetailDto }) {
   });
   return (
     <Card>
-      <h2 className="mb-1 text-lg font-bold">Archivage</h2>
+      <h2 className="mb-1 text-lg font-semibold">Archivage</h2>
       <p className="mb-4 text-slate-600">
         {affaire.archivee
           ? "Cette affaire est archivée : elle n'apparaît plus sur les tablettes."
           : "Une affaire archivée n'apparaît plus sur les tablettes. Ses PV restent dans SharePoint."}
       </p>
-      <Button variant="secondary" busy={toggle.isPending} onClick={() => toggle.mutate()}>
+      <Button
+        variant="secondary"
+        busy={toggle.isPending}
+        onClick={() => {
+          // L'archivage retire l'affaire des tablettes : confirmation (le désarchivage, lui, est sans risque).
+          const message = `Archiver l'affaire ${affaire.numero} ? Elle n'apparaîtra plus sur les tablettes. Vous pourrez la désarchiver.`;
+          if (affaire.archivee || window.confirm(message)) toggle.mutate();
+        }}
+      >
         {affaire.archivee ? "Désarchiver" : "Archiver l'affaire"}
       </Button>
       {toggle.isError && <p className="mt-2 text-red-700">{errorMessage(toggle.error)}</p>}
@@ -271,7 +279,7 @@ export function AffaireFormPage() {
         <AffaireForm affaire={affaire} />
         <Affectations affaire={affaire} />
         <Card>
-          <h2 className="mb-1 text-lg font-bold">Test de dépôt SharePoint</h2>
+          <h2 className="mb-1 text-lg font-semibold">Test de dépôt SharePoint</h2>
           <p className="mb-4 text-slate-600">
             Dépose un petit fichier texte dans le dossier de l'affaire pour vérifier les droits d'écriture.
           </p>

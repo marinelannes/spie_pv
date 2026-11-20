@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { changePasswordRequestSchema, loginRequestSchema, type AuthUser, type SessionResponse } from "@spie/shared";
-import { and, eq, isNull, ne } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { currentUser } from "../context.js";
 import { sessions, utilisateurs } from "../db/schema.js";
@@ -9,7 +9,7 @@ import { HttpError, unauthorized } from "../lib/errors.js";
 import { burnPasswordVerification, hashPassword, verifyPassword } from "../lib/passwords.js";
 import { generateRefreshToken, hashRefreshToken } from "../lib/tokens.js";
 import { requireAuth } from "../plugins/auth.js";
-import { findUserByEmail, findUserById, type UserRow } from "../services/users.js";
+import { findUserByEmail, findUserById, revokeUserSessions, type UserRow } from "../services/users.js";
 
 export const REFRESH_COOKIE = "spie_rt";
 const COOKIE_PATH = "/api/auth";
@@ -96,16 +96,20 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       }
 
       if (!(await verifyPassword(user.passwordHash, password))) {
-        const failures = user.failedLoginCount + 1;
-        const lock = failures >= config.loginMaxFailures;
-        await db
+        // Incrément atomique en base : des tentatives simultanées ne s'écrasent pas entre elles.
+        const [counted] = await db
           .update(utilisateurs)
-          .set(
-            lock
-              ? { failedLoginCount: 0, lockedUntil: new Date(now.getTime() + config.loginLockMinutes * 60_000) }
-              : { failedLoginCount: failures },
-          )
-          .where(eq(utilisateurs.id, user.id));
+          .set({ failedLoginCount: sql`${utilisateurs.failedLoginCount} + 1` })
+          .where(eq(utilisateurs.id, user.id))
+          .returning({ failedLoginCount: utilisateurs.failedLoginCount });
+        const failures = counted?.failedLoginCount ?? config.loginMaxFailures;
+        const lock = failures >= config.loginMaxFailures;
+        if (lock) {
+          await db
+            .update(utilisateurs)
+            .set({ failedLoginCount: 0, lockedUntil: new Date(now.getTime() + config.loginLockMinutes * 60_000) })
+            .where(eq(utilisateurs.id, user.id));
+        }
         await audit(db, {
           action: lock ? "auth.locked" : "auth.login_failed",
           actorId: user.id,
@@ -245,12 +249,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         .where(eq(utilisateurs.id, user.id))
         .returning();
       // Les autres appareils doivent se reconnecter ; la session courante est conservée.
-      await db
-        .update(sessions)
-        .set({ revokedAt: now })
-        .where(
-          and(eq(sessions.userId, user.id), isNull(sessions.revokedAt), ne(sessions.familyId, req.sessionFamilyId!)),
-        );
+      await revokeUserSessions(db, user.id, now, { exceptFamilyId: req.sessionFamilyId ?? undefined });
       await audit(db, { action: "auth.password_changed", actorId: user.id, ip: req.ip });
       return toAuthUser(updated!);
     },

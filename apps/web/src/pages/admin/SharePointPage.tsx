@@ -1,6 +1,7 @@
 import type { AffaireListItemDto, DossierSharePoint, SharePointStatusDto } from "@spie/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { FamillesSharePoint } from "../../components/FamillesSharePoint";
 import { SharePointFolderPicker } from "../../components/SharePointFolderPicker";
 import { TestUploadButton } from "../../components/TestUpload";
 import { Alert, Badge, Button, Card, Loading, PageHeader, Select } from "../../components/ui";
@@ -28,10 +29,13 @@ export function SharePointPage() {
 
   return (
     <>
-      <PageHeader title="SharePoint" subtitle="Connexion au site cible et test de dépôt." />
+      <PageHeader
+        title="SharePoint"
+        subtitle="Connexion au site cible, dossiers de dépôt par famille de PV et test de dépôt."
+      />
       <div className="space-y-6">
         <Card>
-          <h2 className="mb-3 text-lg font-bold">État de la connexion</h2>
+          <h2 className="mb-3 text-lg font-semibold">État de la connexion</h2>
           {status.isPending ? (
             <Loading />
           ) : status.isError ? (
@@ -78,8 +82,10 @@ export function SharePointPage() {
           )}
         </Card>
 
+        <FamillesSharePoint />
+
         <Card>
-          <h2 className="mb-1 text-lg font-bold">Dépôt de test dans le dossier d'une affaire</h2>
+          <h2 className="mb-1 text-lg font-semibold">Dépôt de test dans le dossier d'une affaire</h2>
           <p className="mb-4 text-slate-600">
             Vérifie que l'application peut écrire dans le dossier cible (permission Sites.Selected en écriture).
           </p>
@@ -108,7 +114,7 @@ export function SharePointPage() {
         </Card>
 
         <Card>
-          <h2 className="mb-1 text-lg font-bold">Dépôt de test dans un dossier quelconque</h2>
+          <h2 className="mb-1 text-lg font-semibold">Dépôt de test dans un dossier quelconque</h2>
           <p className="mb-4 text-slate-600">Pour tester les droits avant d'avoir créé une affaire.</p>
           {picking ? (
             <SharePointFolderPicker

@@ -52,7 +52,7 @@ export function AffairesPage() {
               <Td>
                 <Link
                   to={`/admin/affaires/${a.id}`}
-                  className="font-bold text-brand-700 underline-offset-4 hover:underline"
+                  className="font-semibold text-brand-700 underline-offset-4 hover:underline"
                 >
                   {a.numero}
                 </Link>

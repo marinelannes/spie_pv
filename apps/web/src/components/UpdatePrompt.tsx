@@ -15,7 +15,7 @@ export function UpdatePrompt() {
   return (
     <div
       role="status"
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-xl flex-wrap items-center gap-3 rounded-xl bg-slate-900 p-4 text-white shadow-lg"
+      className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-xl flex-wrap items-center gap-3 rounded-lg bg-brand-900 p-4 text-white shadow-lg"
     >
       <p className="flex-1">Une nouvelle version de l'application est disponible.</p>
       <Button onClick={() => void updateServiceWorker(true)}>Mettre à jour</Button>

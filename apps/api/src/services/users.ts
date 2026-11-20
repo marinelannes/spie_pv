@@ -1,5 +1,5 @@
 import type { Role, UserDto } from "@spie/shared";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, ne } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { sessions, utilisateurs } from "../db/schema.js";
 import { conflict } from "../lib/errors.js";
@@ -73,9 +73,21 @@ export async function resetPassword(
   return { user, temporaryPassword };
 }
 
-export async function revokeUserSessions(db: Db, userId: string, now: Date): Promise<void> {
+/** Révoque les sessions d'un compte, sauf éventuellement celle issue de la connexion en cours. */
+export async function revokeUserSessions(
+  db: Db,
+  userId: string,
+  now: Date,
+  opts: { exceptFamilyId?: string } = {},
+): Promise<void> {
   await db
     .update(sessions)
     .set({ revokedAt: now })
-    .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+    .where(
+      and(
+        eq(sessions.userId, userId),
+        isNull(sessions.revokedAt),
+        opts.exceptFamilyId ? ne(sessions.familyId, opts.exceptFamilyId) : undefined,
+      ),
+    );
 }

@@ -11,6 +11,11 @@ export interface DbHandle {
   db: Db;
   kind: "postgres" | "pglite";
   migrate(): Promise<void>;
+  /**
+   * Exécute `fn` en exclusion mutuelle avec les autres processus sur la même base (plusieurs réplicas de l'API
+   * qui démarrent ensemble). À utiliser pour les migrations et l'initialisation des données.
+   */
+  withStartupLock<T>(fn: () => Promise<T>): Promise<T>;
   close(): Promise<void>;
 }
 
@@ -34,6 +39,8 @@ export async function openDatabase(url: string): Promise<DbHandle> {
       db: db as unknown as Db,
       kind: "pglite",
       migrate: () => migrate(db, { migrationsFolder }),
+      // PGlite est embarqué dans un seul processus : rien à sérialiser.
+      withStartupLock: (fn) => fn(),
       close: () => client.close(),
     };
   }
@@ -49,9 +56,24 @@ export async function openDatabase(url: string): Promise<DbHandle> {
     db: db as unknown as Db,
     kind: "postgres",
     migrate: () => migrate(db, { migrationsFolder }),
+    async withStartupLock(fn) {
+      // Verrou consultatif de session sur une connexion dédiée : les autres réplicas attendent ici
+      // pendant que le premier applique les migrations et crée l'administrateur initial.
+      const lockClient = await pool.connect();
+      try {
+        await lockClient.query("select pg_advisory_lock($1)", [STARTUP_LOCK_KEY]);
+        return await fn();
+      } finally {
+        await lockClient.query("select pg_advisory_unlock($1)", [STARTUP_LOCK_KEY]).catch(() => undefined);
+        lockClient.release();
+      }
+    },
     close: () => pool.end(),
   };
 }
+
+/** Clé du verrou consultatif PostgreSQL qui sérialise l'initialisation entre réplicas (valeur arbitraire, fixe). */
+const STARTUP_LOCK_KEY = 735_173_001;
 
 /** Le dossier `drizzle/` est à côté de `src/` (sources) ou de `dist/` (bundle) : on le cherche en remontant. */
 function findMigrationsFolder(): string {

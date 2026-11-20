@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import fastifyCookie from "@fastify/cookie";
 import fastifyHelmet from "@fastify/helmet";
@@ -14,11 +14,18 @@ import { AccessTokens } from "./lib/tokens.js";
 import { requireAuth } from "./plugins/auth.js";
 import { registerErrorHandling } from "./plugins/errors.js";
 import { adminAuditRoutes } from "./routes/admin-audit.js";
+import { adminDepotRoutes } from "./routes/admin-depots.js";
 import { adminSharePointRoutes } from "./routes/admin-sharepoint.js";
 import { adminUserRoutes } from "./routes/admin-users.js";
 import { adminAffaireRoutes, affaireRoutes } from "./routes/affaires.js";
 import { authRoutes } from "./routes/auth.js";
+import { prepRoutes } from "./routes/prep.js";
+import { pvVersionRoutes, syncRoutes } from "./routes/terrain.js";
+import type { GenerateurFichiers } from "./services/fichiers.js";
+import { generateurParDefaut } from "./services/generateur-defaut.js";
+import { TraitementDepots } from "./services/traitement.js";
 import type { SharePointClient } from "./sharepoint/types.js";
+import { createFileArchive, type FileArchive } from "./storage/archive.js";
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -27,22 +34,39 @@ export interface BuildAppOptions {
   now?: () => Date;
   version?: string;
   logger?: FastifyServerOptions["logger"];
+  /** Archive des fichiers produits ; défaut : selon la configuration (Blob ou dossier local). */
+  archive?: FileArchive;
+  /** Production des fichiers ; défaut : PDF par Chromium, JSON, XLSX. */
+  fichiers?: GenerateurFichiers;
 }
 
 export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> {
   const { config } = opts;
   const app = Fastify({
     logger: opts.logger ?? false,
-    trustProxy: config.trustProxy,
+    // Proxys de confiance désignés par adresse, jamais `true` : seul l'ingress est cru sur X-Forwarded-For.
+    trustProxy: config.trustProxy ?? undefined,
     bodyLimit: 1024 * 1024,
   });
 
+  const now = opts.now ?? (() => new Date());
+  const archive = opts.archive ?? createFileArchive(config.archive);
   const ctx: AppContext = {
     config,
     db: opts.db,
     sharepoint: opts.sharepoint,
     tokens: new AccessTokens(config.jwtSecret, config.accessTokenTtlSeconds),
-    now: opts.now ?? (() => new Date()),
+    archive,
+    traitement: new TraitementDepots({
+      db: opts.db,
+      sharepoint: opts.sharepoint,
+      archive,
+      fichiers: opts.fichiers ?? generateurParDefaut(config),
+      now,
+      createMissingFolders: config.sharepointCreateMissingFolders,
+      log: app.log,
+    }),
+    now,
     version: opts.version ?? "dev",
   };
   app.decorate("ctx", ctx);
@@ -78,6 +102,9 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
 
   await app.register(authRoutes, { prefix: "/api/auth" });
   await app.register(affaireRoutes, { prefix: "/api/affaires" });
+  await app.register(syncRoutes, { prefix: "/api/sync" });
+  await app.register(pvVersionRoutes, { prefix: "/api/pv-versions" });
+  await app.register(prepRoutes, { prefix: "/api/prep" });
   await app.register(
     async (admin) => {
       admin.addHook("preHandler", requireAuth({ roles: ["admin"] }));
@@ -85,9 +112,27 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
       await admin.register(adminAffaireRoutes, { prefix: "/affaires" });
       await admin.register(adminSharePointRoutes, { prefix: "/sharepoint" });
       await admin.register(adminAuditRoutes, { prefix: "/audit" });
+      await admin.register(adminDepotRoutes, { prefix: "/depots" });
     },
     { prefix: "/api/admin" },
   );
+
+  // SharePoint simulé (hors production) : les fichiers déposés s'ouvrent depuis leur lien, comme dans SharePoint.
+  const sp = config.sharepoint;
+  if (sp.mode === "fake" && sp.urlPublique) {
+    mkdirSync(sp.rootDir, { recursive: true });
+    await app.register(fastifyStatic, {
+      root: resolve(sp.rootDir),
+      prefix: `${sp.urlPublique}/`,
+      decorateReply: false,
+      wildcard: true, // fichiers déposés après le démarrage
+      index: false,
+      list: false,
+      setHeaders(res) {
+        res.setHeader("Cache-Control", "no-store");
+      },
+    });
+  }
 
   const webDir =
     config.webDistDir && existsSync(resolve(config.webDistDir, "index.html")) ? resolve(config.webDistDir) : null;
@@ -103,9 +148,17 @@ export async function buildApp(opts: BuildAppOptions): Promise<FastifyInstance> 
     });
   }
 
+  // Arrêt propre : on attend la fin du dépôt en cours et on ferme Chromium.
+  app.addHook("onClose", async () => {
+    await ctx.traitement.arreter();
+  });
+
   app.setNotFoundHandler((req, reply) => {
-    if (webDir && req.method === "GET" && !req.url.startsWith("/api/")) {
-      // Application monopage : toute route inconnue renvoie index.html.
+    const pathname = req.url.split("?")[0] ?? "";
+    // Application monopage : une route de l'application (sans extension) renvoie index.html. Un fichier absent
+    // (ex. /assets/index-ANCIEN.js demandé par une ancienne version en cache) reçoit un vrai 404, pas du HTML.
+    const isAppRoute = !pathname.startsWith("/api/") && !/\.[^/]*$/.test(pathname);
+    if (webDir && req.method === "GET" && isAppRoute) {
       return reply.header("Cache-Control", "no-cache").sendFile("index.html");
     }
     const body: ApiErrorBody = { error: { code: "not_found", message: "Route introuvable." } };

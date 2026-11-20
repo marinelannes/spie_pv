@@ -1,8 +1,9 @@
-import { readFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
+import { join, posix, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AffaireDetailDto, SharePointBrowseResponse, SharePointStatusDto, TestUploadResponse } from "@spie/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { FakeSharePointClient } from "../src/sharepoint/fake.js";
+import { FakeSharePointClient, isPathInside } from "../src/sharepoint/fake.js";
 import { SharePointConflictError, SharePointError } from "../src/sharepoint/types.js";
 import { bearer, createTestApp, login, seedUser, type TestApp } from "./helpers.js";
 
@@ -68,9 +69,18 @@ describe("SharePoint simulé", () => {
     expect(up.name).toMatch(/^TEST_DEPOT_spie-pv_20261119-143205_[0-9a-f]{4}\.txt$/);
     expect(up.folderPath).toBe("Documents partagés / Affaires / A35173 - Stockage batteries GAU11");
 
-    const content = await readFile(fileURLToPath(up.webUrl!), "utf8");
+    // Hors production, le SharePoint simulé sert les fichiers déposés : le lien s'ouvre comme un webUrl SharePoint.
+    expect(up.webUrl).toBe(
+      `/sharepoint-simule/Documents%20partag%C3%A9s/Affaires/A35173%20-%20Stockage%20batteries%20GAU11/${up.name}`,
+    );
+    const servi = await t.app.inject({ method: "GET", url: up.webUrl! });
+    expect(servi.statusCode).toBe(200);
+    const content = servi.body;
     expect(content).toContain("Demandé par : Alice Admin <admin@spie.test>");
     expect(content).toContain("Affaire : A35173");
+    expect((await t.app.inject({ method: "GET", url: "/sharepoint-simule/../../package.json" })).statusCode).not.toBe(
+      200,
+    );
 
     // Un second dépôt crée un autre fichier, sans écraser le premier.
     const second = (
@@ -124,6 +134,32 @@ describe("FakeSharePointClient", () => {
     await expect(sp.getFolder(drive!.driveId, Buffer.from("../..").toString("base64url"))).rejects.toBeInstanceOf(
       SharePointError,
     );
+  });
+
+  it("accepte un dossier dont le nom commence par « .. »", async () => {
+    const sp = new FakeSharePointClient(`${t.dir}/points`);
+    const [drive] = await sp.listDrives();
+    const site = await sp.getSite();
+    await mkdir(join(fileURLToPath(site.webUrl!), drive!.name, "..notes"), { recursive: true });
+    const child = (await sp.listChildFolders(drive!.driveId, "root")).find((f) => f.name === "..notes")!;
+    await expect(sp.getFolder(drive!.driveId, child.id)).resolves.toMatchObject({
+      path: "Documents partagés / ..notes",
+    });
+  });
+});
+
+describe("isPathInside", () => {
+  it("Windows : refuse un autre lecteur et la remontée, accepte les descendants", () => {
+    expect(isPathInside("C:\\data\\sp", "D:\\autre", win32)).toBe(false);
+    expect(isPathInside("C:\\data\\sp", "C:\\data", win32)).toBe(false);
+    expect(isPathInside("C:\\data\\sp", "C:\\data\\sp\\A35173", win32)).toBe(true);
+    expect(isPathInside("C:\\data\\sp", "C:\\data\\sp\\..notes", win32)).toBe(true);
+  });
+
+  it("POSIX : refuse la remontée, accepte la racine et les descendants", () => {
+    expect(isPathInside("/data/sp", "/etc", posix)).toBe(false);
+    expect(isPathInside("/data/sp", "/data/sp", posix)).toBe(true);
+    expect(isPathInside("/data/sp", "/data/sp/a/b", posix)).toBe(true);
   });
 });
 

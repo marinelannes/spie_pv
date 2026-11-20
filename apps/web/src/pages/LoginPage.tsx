@@ -26,7 +26,11 @@ export function LoginPage() {
     try {
       const user = await login(values);
       if (user.mustChangePassword) navigate("/mot-de-passe", { replace: true });
-      else navigate(from ?? (user.role === "admin" ? "/admin/affaires" : "/"), { replace: true });
+      else
+        navigate(
+          from ?? (user.role === "admin" ? "/admin/affaires" : user.role === "preparateur" ? "/preparation" : "/"),
+          { replace: true },
+        );
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -38,7 +42,7 @@ export function LoginPage() {
         <div className="mb-6 flex items-center gap-3">
           <img src="/favicon.svg" alt="" className="size-12" />
           <div>
-            <h1 className="text-2xl font-bold">PV SPIE</h1>
+            <h1 className="text-2xl font-semibold">PV SPIE</h1>
             <p className="text-slate-600">Saisie des procès-verbaux</p>
           </div>
         </div>

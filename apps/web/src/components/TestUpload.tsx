@@ -1,6 +1,7 @@
 import type { TestUploadRequest, TestUploadResponse } from "@spie/shared";
 import { useMutation } from "@tanstack/react-query";
 import { api, errorMessage } from "../lib/api";
+import { lienSharePoint } from "../lib/sharepoint";
 import { Alert, Button } from "./ui";
 
 /** Bouton de dépôt d'un fichier de test dans SharePoint (critère de fin du lot 0) et résultat. */
@@ -26,9 +27,9 @@ export function TestUploadButton({
           <p className="font-semibold">Fichier déposé</p>
           <p className="mt-1 break-all font-mono text-sm">{upload.data.name}</p>
           <p className="mt-1 text-sm">Dossier : {upload.data.folderPath}</p>
-          {upload.data.webUrl?.startsWith("https://") && (
+          {lienSharePoint(upload.data.webUrl) && (
             <a
-              href={upload.data.webUrl}
+              href={lienSharePoint(upload.data.webUrl)!}
               target="_blank"
               rel="noreferrer"
               className="mt-2 inline-block font-semibold underline"

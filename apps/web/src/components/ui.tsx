@@ -1,6 +1,7 @@
 import {
   forwardRef,
   useId,
+  useState,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
@@ -47,7 +48,7 @@ export function Button({
 }
 
 const inputBase =
-  "block w-full min-h-12 rounded-lg border-2 border-slate-300 bg-white px-3 text-base text-slate-900 " +
+  "block w-full min-h-12 rounded-lg border-2 border-slate-300 bg-white px-3 text-base text-brand-700 " +
   "focus:border-brand-600 focus:outline-none aria-[invalid=true]:border-red-600 disabled:bg-slate-100";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input(
@@ -80,7 +81,7 @@ export function Field({
   const describedBy = error ? `${id}-err` : hint ? `${id}-hint` : undefined;
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="block text-base font-medium text-slate-800">
+      <label htmlFor={id} className="block text-base font-medium text-brand-700">
         {label}
       </label>
       {children({ id, "aria-invalid": Boolean(error), "aria-describedby": describedBy })}
@@ -99,7 +100,7 @@ export function Field({
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className={cx("rounded-xl border border-slate-200 bg-white p-5 shadow-sm", className)}>{children}</section>
+    <section className={cx("rounded-lg border border-slate-200 bg-white p-5 shadow-sm", className)}>{children}</section>
   );
 }
 
@@ -107,7 +108,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
+        <h1 className="text-2xl font-semibold text-brand-700">{title}</h1>
         {subtitle && <p className="mt-1 text-slate-600">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-3">{actions}</div>}
@@ -134,7 +135,7 @@ export function Alert({ kind = "info", children }: { kind?: keyof typeof alertSt
 }
 
 const badgeStyles = {
-  neutral: "bg-slate-100 text-slate-800",
+  neutral: "bg-slate-100 text-brand-700",
   blue: "bg-brand-100 text-brand-900",
   green: "bg-green-100 text-green-900",
   red: "bg-red-100 text-red-900",
@@ -177,7 +178,7 @@ export function Loading({ label = "Chargement…" }: { label?: string }) {
 /** Tableau à défilement horizontal sur petit écran. */
 export function Table({ head, children }: { head: ReactNode[]; children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
       <table className="w-full min-w-[640px] text-left text-base">
         <thead className="bg-slate-100 text-sm uppercase tracking-wide text-slate-700">
           <tr>
@@ -208,6 +209,17 @@ export function TemporaryPassword({
   password: string;
   onClose: () => void;
 }) {
+  const [copie, setCopie] = useState<"ok" | "echec" | null>(null);
+  const copier = async () => {
+    try {
+      // Presse-papiers indisponible (page non sécurisée, permission refusée) : message explicite, pas d'échec muet.
+      if (!navigator.clipboard) throw new Error("presse-papiers indisponible");
+      await navigator.clipboard.writeText(password);
+      setCopie("ok");
+    } catch {
+      setCopie("echec");
+    }
+  };
   return (
     <Alert kind="success">
       <p className="font-semibold">Mot de passe provisoire pour {email}</p>
@@ -216,13 +228,21 @@ export function TemporaryPassword({
         Transmettez-le à l'utilisateur par un canal sûr. Il ne sera plus affiché et devra être changé à la première
         connexion.
       </p>
-      <div className="mt-3 flex gap-3">
-        <Button variant="secondary" onClick={() => void navigator.clipboard?.writeText(password)}>
-          Copier
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Button variant="secondary" onClick={() => void copier()}>
+          {copie === "ok" ? "Copié ✓" : "Copier"}
         </Button>
         <Button variant="ghost" onClick={onClose}>
           Fermer
         </Button>
+        <span className="text-sm font-semibold">
+          {copie === "ok" && "Mot de passe copié dans le presse-papiers."}
+          {copie === "echec" && (
+            <span className="text-red-800">
+              Copie impossible : sélectionnez le mot de passe et copiez-le à la main.
+            </span>
+          )}
+        </span>
       </div>
     </Alert>
   );

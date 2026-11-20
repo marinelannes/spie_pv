@@ -8,7 +8,7 @@ export function createSharePointClient(cfg: SharePointConfig): SharePointClient 
     case "graph":
       return createGraphSharePointClient(cfg);
     case "fake":
-      return new FakeSharePointClient(cfg.rootDir);
+      return new FakeSharePointClient(cfg.rootDir, { urlPublique: cfg.urlPublique ?? null });
     case "disabled":
       return null;
   }

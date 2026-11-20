@@ -3,9 +3,9 @@
 import { writeFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
 
-const BRAND = [0x0b, 0x3a, 0x75];
+const BRAND = [0x0f, 0x1e, 0x5a];
 const WHITE = [0xff, 0xff, 0xff];
-const LIGHT = [0xcb, 0xd8, 0xea];
+const LIGHT = [0xda, 0xde, 0xed];
 
 /** Couleur d'un point en coordonnées 0..64 (repère du favicon SVG). */
 function colorAt(x, y) {

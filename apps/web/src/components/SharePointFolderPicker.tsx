@@ -27,7 +27,7 @@ export function SharePointFolderPicker({
   const current = browse.data?.current;
 
   return (
-    <div className="rounded-xl border-2 border-brand-200 bg-brand-50 p-4">
+    <div className="rounded-lg border-2 border-brand-200 bg-brand-50 p-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Button
           variant="secondary"

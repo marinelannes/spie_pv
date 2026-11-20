@@ -7,8 +7,13 @@ const envSchema = z.object({
   HOST: z.string().default("0.0.0.0"),
   PORT: z.coerce.number().int().positive().default(3000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
-  /** Derrière l'ingress Azure Container Apps : l'IP cliente est dans X-Forwarded-For. */
-  TRUST_PROXY: bool.optional(),
+  /**
+   * Adresses des proxys de confiance (syntaxe proxy-addr : préréglages `loopback`, `linklocal`, `uniquelocal`
+   * ou CIDR, séparés par des virgules ; vide = aucun). L'IP cliente est la première adresse non fiable en
+   * remontant X-Forwarded-For depuis la connexion. Faire confiance à toute la chaîne (`true`) laisserait le client
+   * choisir son IP : contournement de la limite de débit et IP fausses dans le journal d'audit.
+   */
+  TRUST_PROXY: z.string().optional(),
 
   DATABASE_URL: z.string().min(1).optional(),
   JWT_SECRET: z.string().min(32, "JWT_SECRET doit contenir au moins 32 caractères.").optional(),
@@ -40,11 +45,42 @@ const envSchema = z.object({
 
   /** Libellé de l'environnement (recette, production…), repris dans le fichier de test SharePoint. */
   APP_ENV_LABEL: z.string().optional(),
+
+  /**
+   * Sous-dossier manquant sous le dossier de l'affaire (point ouvert n°13) : créé automatiquement (true, défaut) ou
+   * dépôt en erreur (false).
+   */
+  SHAREPOINT_CREATE_MISSING_FOLDERS: bool.optional(),
+
+  /** Copie des fichiers produits (spec §5.4) : Azure Blob Storage en production, dossier local sinon. */
+  ARCHIVE_MODE: z.enum(["azure", "local"]).optional(),
+  ARCHIVE_DIR: z.string().default(".data/archive"),
+  AZURE_STORAGE_ACCOUNT_URL: z.string().url().optional(),
+  AZURE_STORAGE_CONTAINER: z.string().default("pv-files"),
+  /** Identité managée affectée par l'utilisateur (Container Apps). */
+  AZURE_CLIENT_ID: z.string().optional(),
+
+  /** Chromium pour le rendu PDF (Playwright). Défaut : détection des chemins usuels. */
+  CHROMIUM_EXECUTABLE_PATH: z.string().optional(),
+  /**
+   * Traitement des dépôts dans le processus de l'API (développement, PGlite) plutôt que dans le worker.
+   * Défaut : activé avec PGlite, désactivé avec PostgreSQL.
+   */
+  WORKER_INLINE: bool.optional(),
+  /** Intervalle de scrutation de la file des dépôts, en secondes. */
+  WORKER_POLL_SECONDS: z.coerce.number().int().positive().default(15),
+  /** Exiger une observation sur chaque NC (point ouvert n°9). */
+  NC_OBSERVATION_OBLIGATOIRE: bool.optional(),
 });
 
 export type SharePointConfig =
   | { mode: "disabled" }
-  | { mode: "fake"; rootDir: string }
+  | {
+      mode: "fake";
+      rootDir: string;
+      /** Hors production : préfixe sous lequel l'API sert le dossier simulé (liens « Ouvrir dans SharePoint »). */
+      urlPublique?: string | null;
+    }
   | {
       mode: "graph";
       tenantId: string;
@@ -59,7 +95,8 @@ export interface AppConfig {
   host: string;
   port: number;
   logLevel: string;
-  trustProxy: boolean;
+  /** Proxys de confiance au format proxy-addr, ou null (connexion directe). */
+  trustProxy: string | null;
   databaseUrl: string;
   jwtSecret: string;
   accessTokenTtlSeconds: number;
@@ -73,7 +110,22 @@ export interface AppConfig {
   bootstrapAdmin: { email: string; nom: string; password: string } | null;
   webDistDir: string | null;
   sharepoint: SharePointConfig;
+  sharepointCreateMissingFolders: boolean;
+  archive: ArchiveConfig;
+  chromiumExecutablePath: string | null;
+  workerInline: boolean;
+  workerPollMs: number;
+  ncObservationObligatoire: boolean;
 }
+
+export type ArchiveConfig =
+  | { mode: "local"; dir: string }
+  | { mode: "azure"; accountUrl: string; container: string; managedIdentityClientId: string | null };
+
+const PRODUCTION_TRUSTED_PROXIES = "loopback, linklocal, uniquelocal, 100.64.0.0/10";
+
+/** Préfixe HTTP du SharePoint simulé (hors production), exclu du repli de navigation de la PWA. */
+export const URL_SHAREPOINT_SIMULE = "/sharepoint-simule";
 
 const DEV_JWT_SECRET = "dev-uniquement-ne-jamais-utiliser-en-production-0123456789";
 
@@ -109,10 +161,27 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       siteId: e.SHAREPOINT_SITE_ID!,
     };
   } else if (sharepointMode === "fake") {
-    sharepoint = { mode: "fake", rootDir: e.FAKE_SHAREPOINT_DIR };
+    sharepoint = { mode: "fake", rootDir: e.FAKE_SHAREPOINT_DIR, urlPublique: prod ? null : URL_SHAREPOINT_SIMULE };
   } else {
     sharepoint = { mode: "disabled" };
   }
+
+  const archiveMode = e.ARCHIVE_MODE ?? (prod ? "azure" : "local");
+  let archive: ArchiveConfig;
+  if (archiveMode === "azure") {
+    if (!e.AZURE_STORAGE_ACCOUNT_URL) {
+      throw new ConfigError("ARCHIVE_MODE=azure : AZURE_STORAGE_ACCOUNT_URL est obligatoire.");
+    }
+    archive = {
+      mode: "azure",
+      accountUrl: e.AZURE_STORAGE_ACCOUNT_URL,
+      container: e.AZURE_STORAGE_CONTAINER,
+      managedIdentityClientId: e.AZURE_CLIENT_ID ?? null,
+    };
+  } else {
+    archive = { mode: "local", dir: e.ARCHIVE_DIR };
+  }
+  const databaseUrl = e.DATABASE_URL ?? "pglite://.data/pglite";
 
   const bootstrapAdmin =
     e.BOOTSTRAP_ADMIN_EMAIL && e.BOOTSTRAP_ADMIN_PASSWORD
@@ -125,8 +194,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     host: e.HOST,
     port: e.PORT,
     logLevel: e.LOG_LEVEL,
-    trustProxy: e.TRUST_PROXY ?? prod,
-    databaseUrl: e.DATABASE_URL ?? "pglite://.data/pglite",
+    // En production, l'ingress Envoy d'Azure Container Apps se connecte depuis le réseau interne de
+    // l'environnement (adresses privées ou CGNAT), d'où aucun client Internet ne peut joindre l'API directement.
+    trustProxy: (e.TRUST_PROXY ?? (prod ? PRODUCTION_TRUSTED_PROXIES : "")).trim() || null,
+    databaseUrl,
     jwtSecret: e.JWT_SECRET ?? DEV_JWT_SECRET,
     accessTokenTtlSeconds: e.ACCESS_TOKEN_TTL_SECONDS,
     refreshTokenTtlDays: e.REFRESH_TOKEN_TTL_DAYS,
@@ -138,6 +209,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     bootstrapAdmin,
     webDistDir: e.WEB_DIST_DIR ?? null,
     sharepoint,
+    sharepointCreateMissingFolders: e.SHAREPOINT_CREATE_MISSING_FOLDERS ?? true,
+    archive,
+    chromiumExecutablePath: e.CHROMIUM_EXECUTABLE_PATH ?? null,
+    workerInline: e.WORKER_INLINE ?? databaseUrl.startsWith("pglite:"),
+    workerPollMs: e.WORKER_POLL_SECONDS * 1000,
+    ncObservationObligatoire: e.NC_OBSERVATION_OBLIGATOIRE ?? true,
   };
 }
 

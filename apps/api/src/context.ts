@@ -1,8 +1,10 @@
 import type { AppConfig } from "./config.js";
 import type { Db } from "./db/client.js";
 import type { AccessTokens } from "./lib/tokens.js";
+import type { TraitementDepots } from "./services/traitement.js";
 import type { UserRow } from "./services/users.js";
 import type { SharePointClient } from "./sharepoint/types.js";
+import type { FileArchive } from "./storage/archive.js";
 
 /** Dépendances partagées par toutes les routes (injectables pour les tests). */
 export interface AppContext {
@@ -11,6 +13,10 @@ export interface AppContext {
   /** null si SHAREPOINT_MODE=disabled. */
   sharepoint: SharePointClient | null;
   tokens: AccessTokens;
+  /** Copie des fichiers produits (Blob Storage en production). */
+  archive: FileArchive;
+  /** Génération des fichiers et dépôt SharePoint avec reprises. */
+  traitement: TraitementDepots;
   now: () => Date;
   version: string;
 }

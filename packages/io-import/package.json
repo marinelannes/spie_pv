@@ -2,12 +2,21 @@
   "name": "@spie/io-import",
   "version": "0.1.0",
   "private": true,
-  "description": "Lecture et normalisation des listes d'entrées/sorties Excel. Lot 1.",
+  "description": "Lecture et normalisation des listes d’entrées/sorties Excel, export des résultats E/S.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@spie/shared": "workspace:*",
+    "exceljs": "^4.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "vitest": "^3.0.5"
   }
 }

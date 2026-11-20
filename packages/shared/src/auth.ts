@@ -11,7 +11,13 @@ export const passwordSchema = z
   .max(PASSWORD_MAX_LENGTH, `Le mot de passe ne doit pas dépasser ${PASSWORD_MAX_LENGTH} caractères.`)
   .refine((v) => v.trim().length === v.length, "Le mot de passe ne doit pas commencer ni finir par un espace.");
 
-export const emailSchema = z.string().trim().toLowerCase().email("Adresse e-mail invalide.").max(254);
+export const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(1, "Adresse e-mail requise.")
+  .email("Adresse e-mail invalide.")
+  .max(254);
 
 export const loginRequestSchema = z.object({
   email: emailSchema,

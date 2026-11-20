@@ -1,15 +1,24 @@
 @import "tailwindcss";
+/* Jost est embarquée (woff2 précachés par le service worker) : aucune dépendance réseau hors ligne. */
+@import "@fontsource-variable/jost/wght.css";
 
+/* Charte graphique : ../../../../charte-graphique/project (relevé de spie.com). */
 @theme {
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --color-brand-50: #eef4fb;
-  --color-brand-100: #d9e6f5;
-  --color-brand-200: #b6cdea;
-  --color-brand-500: #2f6fc0;
-  --color-brand-600: #1a56a3;
-  --color-brand-700: #0b3a75;
-  --color-brand-800: #082d5c;
-  --color-brand-900: #061f40;
+  --font-sans: "Jost Variable", "Jost", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Échelle construite autour du bleu nuit SPIE (700 = #0F1E5A, valeur relevée) ; les autres pas en sont dérivés. */
+  --color-brand-50: #eef0f7;
+  --color-brand-100: #dadeed;
+  --color-brand-200: #b5bcda;
+  --color-brand-500: #4a5aa3;
+  --color-brand-600: #24357f;
+  --color-brand-700: #0f1e5a;
+  --color-brand-800: #0b1746;
+  --color-brand-900: #070f30;
+  /* Rouge de marque : réservé à l'action qui engage, une seule par écran. */
+  --color-accent: #cc0000;
+  --color-surface: #f8f8f8;
+  /* Rayon des cartes, boutons et champs : 10 px comme sur le site. */
+  --radius-lg: 0.625rem;
 }
 
 html {
@@ -18,5 +27,5 @@ html {
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-surface text-brand-700 antialiased;
 }
