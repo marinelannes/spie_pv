@@ -1,6 +1,6 @@
 # spie-pv — Plateforme tablette de saisie des PV SPIE
 
-Monorepo de la PWA technicien, du back-office et de l'API décrits dans [`../spec.md`](../spec.md) (v0.4).
+Monorepo de la PWA technicien, du back-office et de l'API décrits dans [`docs/spec.md`](docs/spec.md) (v0.4).
 Ce dépôt contient le **lot 0 — Socle**, le **lot 1 — PV de test relais de protection** et le **lot 2 — Révisions et
 réserves** (spec §11).
 
