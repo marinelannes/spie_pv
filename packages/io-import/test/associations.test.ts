@@ -28,9 +28,9 @@ const equipement = (ligne: number, tag: string, typeCellule: string) => ({
 
 function liste(): ListeEsLue {
   return {
-    reference: "GAU11_AUT_009",
+    reference: "DEMO1_AUT_009",
     revision: "B",
-    numeroAffaire: "A35173",
+    numeroAffaire: "A00001",
     equipements: [
       equipement(7, "RPN_HTA_F1", "type batterie"),
       equipement(8, "RGU_HTB_TR", ""),
@@ -237,12 +237,12 @@ describe("analyserImport", () => {
       ligne: 6,
       message: "x",
     });
-    const a = analyserImport(l, "GAU11_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx");
+    const a = analyserImport(l, "DEMO1_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx");
     expect(a).toMatchObject({
-      fichier: "GAU11_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx",
-      reference: "GAU11_AUT_009",
+      fichier: "DEMO1_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx",
+      reference: "DEMO1_AUT_009",
       revision: "B",
-      numeroAffaire: "A35173",
+      numeroAffaire: "A00001",
       bloquant: false,
     });
     expect(a.feuilles).toEqual([

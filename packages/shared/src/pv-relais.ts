@@ -290,7 +290,7 @@ export const pvRelaisDataSchema = z.object({
   schemaVersion: z.literal(PV_RELAIS_SCHEMA_VERSION),
   modele: z.literal(MODELE_RELAIS),
   entete: z.object({
-    /** Codification projet SPIE (ex. GAU11_AUT_009), distincte du numéro du PV (spec §4.1). */
+    /** Codification projet SPIE (ex. DEMO1_AUT_009), distincte du numéro du PV (spec §4.1). */
     numeroDocument: texte(120),
     numeroAffaire: texte(32),
     client: texte(200),

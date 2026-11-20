@@ -103,7 +103,7 @@ describe("creerPvSurSite (spec §3.2, §4.1)", () => {
     const h = horloge("2026-11-19T13:32:05.300Z");
     const pv = await creerPvSurSite(db, { affaire: LOCAL_AFFAIRE, equipementId: EQ_DIFF.id, auteur: "Théo" }, h);
     expect(pv).toMatchObject({
-      numero: "A35173-20261119-143205",
+      numero: "A00001-20261119-143205",
       indice: "A",
       origine: "site",
       statut: "brouillon",
@@ -128,8 +128,8 @@ describe("creerPvSurSite (spec §3.2, §4.1)", () => {
       creerPvSurSite(db, { affaire: LOCAL_AFFAIRE, equipementId: EQ_DIFF.id, auteur: "Théo" }, h),
       creerPvSurSite(db, { affaire: LOCAL_AFFAIRE, equipementId: EQ_MCN.id, auteur: "Théo" }, h),
     ]);
-    expect(a.numero).toBe("A35173-20261119-143205");
-    expect(b.numero).toBe("A35173-20261119-143206");
+    expect(a.numero).toBe("A00001-20261119-143205");
+    expect(b.numero).toBe("A00001-20261119-143206");
     expect(h.attentes).toEqual([700]);
   });
 
@@ -189,7 +189,7 @@ describe("ouvrirPvPrepare et enregistrerDonnees", () => {
   it("enregistre les données et trace les valeurs préparées modifiées (auteur, date)", async () => {
     const pv = await pvPrepareLocal();
     const d: PvRelaisData = structuredClone(pv.donnees);
-    d.generalites.lieu = "Poste GAU11 — cellule 3"; // préparé : « Poste GAU11 »
+    d.generalites.lieu = "Poste DEMO1 — cellule 3"; // préparé : « Poste DEMO1 »
     d.generalites.dates = "Semaine 47"; // vide au bureau : pas une modification
     const maj = await enregistrerDonnees(db, pv.versionId, d, { par: "Théo", le: "2026-11-19T09:05:00.000Z" });
     expect(maj.statut).toBe("brouillon"); // modifier un PV préparé commence la saisie
@@ -197,8 +197,8 @@ describe("ouvrirPvPrepare et enregistrerDonnees", () => {
     expect(maj.journal).toEqual([
       {
         chemin: "generalites.lieu",
-        avant: "Poste GAU11",
-        apres: "Poste GAU11 — cellule 3",
+        avant: "Poste DEMO1",
+        apres: "Poste DEMO1 — cellule 3",
         par: "Théo",
         le: "2026-11-19T09:05:00.000Z",
       },
@@ -256,7 +256,7 @@ describe("signature (spec §3.2 étapes 6 à 8)", () => {
     const pv = await pvPrepareLocal();
     await ouvrirPvPrepare(db, pv.versionId, new Date("2026-11-19T09:00:00.000Z"));
     const donnees = completer(pv.donnees);
-    donnees.generalites.lieu = "Poste GAU11 bis";
+    donnees.generalites.lieu = "Poste DEMO1 bis";
     const now = new Date("2026-11-19T15:00:00.000Z");
     const signe = await signerPv(db, pv.versionId, { donnees, signataire: { id: "u", nom: "Théo Technicien" } }, now);
     expect(signe).toMatchObject({ statut: "signe", signeLe: now.toISOString(), signePar: "Théo Technicien" });
@@ -330,11 +330,11 @@ describe("listeEsObsolete et construirePvDocument", () => {
       format: "spie-pv/1",
       pv: { id: pv.pvId, numero: pv.numero, famille: "MES", modele: "relais" },
       version: { id: pv.versionId, indice: "A", empreinte: null },
-      affaire: { numero: "A35173", client: "HUAWEI", site: "Gaudonville" },
+      affaire: { numero: "A00001", client: "CLIENT DEMO", site: "Démoville" },
       equipement: { tag: "RPN_HTB_DIFF_TR" },
-      listeEs: { reference: "GAU11_AUT_009", revision: "B", version: 2 },
+      listeEs: { reference: "DEMO1_AUT_009", revision: "B", version: 2 },
       meta: { genereLe: "2026-11-19T10:00:00.000Z" },
     });
-    expect(construirePvDocument(pv, undefined, new Date()).affaire.numero).toBe("A35173");
+    expect(construirePvDocument(pv, undefined, new Date()).affaire.numero).toBe("A00001");
   });
 });

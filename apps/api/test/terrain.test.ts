@@ -25,7 +25,7 @@ beforeAll(async () => {
   s = await scenario(t);
   const prep = as(t, s.prepToken);
   await prep.post(`/api/prep/affaires/${s.affaire.id}/io-lists`, {
-    fichier: "GAU11_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx",
+    fichier: "DEMO1_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx",
     contenuBase64: await classeurEs(),
     associations: [{ tag: "RPN_HTB_DIFF_TR", feuille: "HTB_TR1", filtreTag: "PROTECTION TRANSFO DIF." }],
   });
@@ -52,10 +52,10 @@ describe("synchronisation de la tablette (spec §3.1 étape 5, §6.5)", () => {
     expect(r.serverTime).toBe("2026-11-19T13:32:05.000Z");
     expect(r.utilisateur).toEqual({ id: s.techId, nom: "Théo Technicien" });
     expect(r.modeles).toEqual([{ code: "relais", version: "1.0.0" }]);
-    expect(r.affaires.map((a) => a.affaire.numero)).toEqual(["A35173"]);
+    expect(r.affaires.map((a) => a.affaire.numero)).toEqual(["A00001"]);
     const a = r.affaires[0]!;
     expect(a.equipements.map((e) => e.tag)).toEqual(["RPN_HTA_F1", "RPN_HTA_F2", "RPN_HTB_DIFF_TR", "RPN_HTB_MCN_TR"]);
-    expect(a.liste).toMatchObject({ version: 1, referenceDocument: "GAU11_AUT_009" });
+    expect(a.liste).toMatchObject({ version: 1, referenceDocument: "DEMO1_AUT_009" });
     expect(a.liste!.feuilles.map((f) => [f.nom, f.points.length])).toEqual([
       ["TYPE BATTERIE", 4],
       ["HTB_TR1", 5],
@@ -260,16 +260,16 @@ describe("PV créé sur site, hors ligne (spec §3.2 étape 1, §4.1)", () => {
     const donnees = completer(
       creerPvRelais({
         affaire: {
-          numero: "A35173",
-          client: "HUAWEI",
-          projet: "Stockage batteries – GAU11",
+          numero: "A00001",
+          client: "CLIENT DEMO",
+          projet: "Stockage batteries – DEMO1",
           valideParDefaut: "",
           approuveParDefaut: "",
         },
         es: {
           listeId: liste().id,
           listeVersion: 1,
-          referenceDocument: "GAU11_AUT_009",
+          referenceDocument: "DEMO1_AUT_009",
           revision: "B",
           feuille: "HTB_TR1",
           filtreTag: "PROTECTION TRANSFO DIF.",
@@ -289,7 +289,7 @@ describe("PV créé sur site, hors ligne (spec §3.2 étape 1, §4.1)", () => {
       }),
       "Théo Technicien",
     );
-    const numero = numeroPv("A35173", creeLe);
+    const numero = numeroPv("A00001", creeLe);
     return {
       pvId,
       versionId,
@@ -310,7 +310,7 @@ describe("PV créé sur site, hors ligne (spec §3.2 étape 1, §4.1)", () => {
     const { pvId, versionId, req } = await pvSite(new Date("2026-11-19T09:00:00Z"));
     const res = await tech().put(`/api/pv-versions/${versionId}`, req);
     expect(res.statusCode).toBe(201);
-    expect(res.json<PvVersionStatusDto>()).toMatchObject({ pvId, numero: "A35173-20261119-100000", statut: "recu" });
+    expect(res.json<PvVersionStatusDto>()).toMatchObject({ pvId, numero: "A00001-20261119-100000", statut: "recu" });
     const d = (await as(t, s.prepToken).get(`/api/prep/pv/${pvId}`)).json<PvDetailDto>();
     expect(d).toMatchObject({
       equipementTag: "RPN_HTB_DIFF_TR",
@@ -335,7 +335,7 @@ describe("PV créé sur site, hors ligne (spec §3.2 étape 1, §4.1)", () => {
     const liste = (await as(t, s.prepToken).get(`/api/prep/pv?affaireId=${s.affaire.id}`)).json<
       { numero: string; alerteDoublon: boolean }[]
     >();
-    expect(liste.filter((p) => p.numero === "A35173-20261119-100000").every((p) => p.alerteDoublon)).toBe(true);
+    expect(liste.filter((p) => p.numero === "A00001-20261119-100000").every((p) => p.alerteDoublon)).toBe(true);
   });
 
   it("refuse un numéro qui n'est pas celui de l'affaire, et un PV existant avec une nouvelle version", async () => {

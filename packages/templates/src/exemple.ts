@@ -15,7 +15,7 @@ import { SIGNATURE_EXEMPLE_CLIENT, SIGNATURE_EXEMPLE_SPIE } from "./exemple-sign
 export { SIGNATURE_EXEMPLE_CLIENT, SIGNATURE_EXEMPLE_SPIE };
 
 /**
- * PV d'exemple réaliste (affaire A35173, départ batterie F1), entièrement renseigné et signé. Sert aux tests du
+ * PV d'exemple réaliste (affaire A00001, départ batterie F1), entièrement renseigné et signé. Sert aux tests du
  * rendu, au contrôle visuel des PDF et aux démonstrations de l'aperçu. Données fictives.
  */
 
@@ -114,7 +114,7 @@ function fonction(
 }
 
 export interface OptionsExemple {
-  /** Nombre d'E/S (33 par défaut, 128 pour la feuille la plus longue de GAU11_AUT_009). */
+  /** Nombre d'E/S (33 par défaut, 128 pour la feuille la plus longue de DEMO1_AUT_009). */
   nbEs?: number;
   /** Document signé (empreinte, signatures) ou aperçu en cours de saisie. Signé par défaut. */
   signe?: boolean;
@@ -128,27 +128,27 @@ export function exemplePvDocument(opts: OptionsExemple = {}): PvDocument {
   const signe = opts.signe ?? true;
   let d: PvRelaisData = creerPvRelais({
     affaire: {
-      numero: "A35173",
-      client: "HUAWEI TECHNOLOGIES FRANCE",
-      projet: "Stockage batteries – GAU11",
-      valideParDefaut: "F. BUCAU",
-      approuveParDefaut: "F. DELORDI",
+      numero: "A00001",
+      client: "CLIENT DEMO INDUSTRIES SAS",
+      projet: "Stockage batteries – DEMO1",
+      valideParDefaut: "V. VALIDEUR",
+      approuveParDefaut: "A. APPROBATEUR",
     },
     es: {
       listeId: "6f1c2b9e-1d2c-4a8b-9e10-0a0b0c0d0e01",
       listeVersion: 1,
-      referenceDocument: "GAU11_AUT_009",
+      referenceDocument: "DEMO1_AUT_009",
       revision: "B",
       feuille: "TYPE BATTERIE",
       filtreTag: null,
       points: pointsEsExemple(opts.nbEs ?? 33),
     },
     date: "2026-11-19",
-    ecritPar: "T. CASTILLON",
+    ecritPar: "T. TECHNICIEN",
     modeleRelais: "COMPACT - 7SX8000",
   });
   const c = <T extends { jugement: unknown }>(x: T) => ({ ...x, jugement: "C" as const });
-  const trace = { par: "T. CASTILLON", le: "2026-11-19T14:10:00.000Z" };
+  const trace = { par: "T. TECHNICIEN", le: "2026-11-19T14:10:00.000Z" };
   const identification: Record<string, string> = {
     "numero-serie": "BF2511003214",
     "code-commande": "7SX8000-1AA00-0AA0",
@@ -163,7 +163,7 @@ export function exemplePvDocument(opts: OptionsExemple = {}): PvDocument {
     entete: { ...d.entete, statutDocument: signe ? "CMS" : null },
     generalites: {
       ...d.generalites,
-      lieu: "Poste GAU11 — local HTA zone nord",
+      lieu: "Poste DEMO1 — local HTA zone nord",
       dates: "Semaine 47 (17 au 19/11/2026)",
     },
     documentsReference: [
@@ -180,7 +180,7 @@ export function exemplePvDocument(opts: OptionsExemple = {}): PvDocument {
       valeur: ["112,4 Vcc", "0,2 Ω", "OK"][i] ?? "",
       jugement: "C",
     })),
-    configuration: { nomFichier: "GAU11_RPN_HTA_F1_V3.dex5", jugement: "C" },
+    configuration: { nomFichier: "DEMO1_RPN_HTA_F1_V3.dex5", jugement: "C" },
     circuitsMesure: {
       ...cm,
       transformateurs: cm.transformateurs.map((t) =>
@@ -280,7 +280,7 @@ export function exemplePvDocument(opts: OptionsExemple = {}): PvDocument {
     d = {
       ...d,
       signatures: {
-        spie: { nom: "T. CASTILLON", date: "2026-11-19", signature: SIGNATURE_EXEMPLE_SPIE, commentaires: "" },
+        spie: { nom: "T. TECHNICIEN", date: "2026-11-19", signature: SIGNATURE_EXEMPLE_SPIE, commentaires: "" },
         client: opts.refusClient
           ? {
               nom: "J. DUPONT",
@@ -304,7 +304,7 @@ export function exemplePvDocument(opts: OptionsExemple = {}): PvDocument {
     format: "spie-pv/1",
     pv: {
       id: "3c1f6a2e-5b7d-4e8f-9a0b-1c2d3e4f5a6b",
-      numero: "A35173-20261119-143205",
+      numero: "A00001-20261119-143205",
       modele: "relais",
       modeleVersion: MODELE_RELAIS_VERSION,
       famille: FAMILLE_RELAIS,
@@ -317,10 +317,10 @@ export function exemplePvDocument(opts: OptionsExemple = {}): PvDocument {
       empreinte: signe ? "5f2b8c0e9a7d4c3b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b" : null,
     },
     affaire: {
-      numero: "A35173",
-      client: "HUAWEI TECHNOLOGIES FRANCE",
-      projet: "Stockage batteries – GAU11",
-      site: "GAU11",
+      numero: "A00001",
+      client: "CLIENT DEMO INDUSTRIES SAS",
+      projet: "Stockage batteries – DEMO1",
+      site: "DEMO1",
     },
     equipement: {
       tag: "RPN_HTA_F1",
@@ -330,11 +330,11 @@ export function exemplePvDocument(opts: OptionsExemple = {}): PvDocument {
       local: "LOCAL HTA - ZONE NORD",
       tagArmoire: "ZN_HTA_1ESS01_C03",
     },
-    listeEs: { id: "6f1c2b9e-1d2c-4a8b-9e10-0a0b0c0d0e01", reference: "GAU11_AUT_009", revision: "B", version: 1 },
+    listeEs: { id: "6f1c2b9e-1d2c-4a8b-9e10-0a0b0c0d0e01", reference: "DEMO1_AUT_009", revision: "B", version: 1 },
     meta: {
       creeLe: "2026-11-19T13:32:05.000Z",
       tabletteId: "tablette-demo",
-      signePar: signe ? { id: "00000000-0000-4000-8000-000000000001", nom: "T. CASTILLON" } : null,
+      signePar: signe ? { id: "00000000-0000-4000-8000-000000000001", nom: "T. TECHNICIEN" } : null,
       recuLe: null,
       genereLe: "2026-11-19T15:05:00.000Z",
     },
@@ -345,7 +345,7 @@ export function exemplePvDocument(opts: OptionsExemple = {}): PvDocument {
         chemin: `fonctions[${fonctionId}].reglages`,
         avant: "6250A",
         apres: "6300A",
-        par: "T. CASTILLON",
+        par: "T. TECHNICIEN",
         le: "2026-11-19T14:20:00.000Z",
       },
     ],

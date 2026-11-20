@@ -77,11 +77,11 @@ export interface FeuilleEsLue {
 }
 
 export interface ListeEsLue {
-  /** Référence du document (ex. GAU11_AUT_009). */
+  /** Référence du document (ex. DEMO1_AUT_009). */
   reference: string;
   /** Révision du fichier (ex. B). */
   revision: string;
-  /** N° d'affaire lu dans le fichier (feuille REV ou en-têtes), ex. A35173. */
+  /** N° d'affaire lu dans le fichier (feuille REV ou en-têtes), ex. A00001. */
   numeroAffaire: string;
   equipements: EquipementLu[];
   feuilles: FeuilleEsLue[];

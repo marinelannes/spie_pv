@@ -9,16 +9,16 @@ import {
 } from "@spie/shared";
 import type { LocalAffaire } from "../offline/db";
 
-/** Données de test : affaire A35173, deux équipements, liste E/S avec une feuille à deux groupes TAG. */
+/** Données de test : affaire A00001, deux équipements, liste E/S avec une feuille à deux groupes TAG. */
 
 export const AFFAIRE: AffaireDto = {
   id: "00000000-0000-4000-8000-00000000a001",
-  numero: "A35173",
-  client: "HUAWEI",
-  projet: "Stockage batteries – GAU11",
-  site: "Gaudonville",
-  valideParDefaut: "F. BUCAU",
-  approuveParDefaut: "F. DELORDI",
+  numero: "A00001",
+  client: "CLIENT DEMO",
+  projet: "Stockage batteries – DEMO1",
+  site: "Démoville",
+  valideParDefaut: "V. VALIDEUR",
+  approuveParDefaut: "A. APPROBATEUR",
   dossierSharePoint: null,
   archivee: false,
   createdAt: "2026-11-01T10:00:00.000Z",
@@ -92,10 +92,10 @@ export const SYNC_AFFAIRE: SyncAffaireDto = {
   liste: {
     id: "00000000-0000-4000-8000-0000000c0001",
     affaireId: AFFAIRE.id,
-    referenceDocument: "GAU11_AUT_009",
+    referenceDocument: "DEMO1_AUT_009",
     revision: "B",
     version: 2,
-    fichierSource: "GAU11.xlsx",
+    fichierSource: "DEMO1.xlsx",
     importeLe: "2026-11-13T10:00:00.000Z",
     importePar: "Paul",
     nbFeuilles: 1,
@@ -119,7 +119,7 @@ export function donneesPreparees(): PvRelaisData {
     es: {
       listeId: SYNC_AFFAIRE.liste!.id,
       listeVersion: 2,
-      referenceDocument: "GAU11_AUT_009",
+      referenceDocument: "DEMO1_AUT_009",
       revision: "B",
       feuille: "HTB_TR1",
       filtreTag: "PROTECTION TRANSFO DIF.",
@@ -128,7 +128,7 @@ export function donneesPreparees(): PvRelaisData {
     date: "2026-11-18",
     modeleRelais: "7UT85",
   });
-  d.generalites.lieu = "Poste GAU11";
+  d.generalites.lieu = "Poste DEMO1";
   return d;
 }
 
@@ -136,7 +136,7 @@ export function syncPv(overrides: Partial<SyncPvDto> = {}): SyncPvDto {
   return {
     pvId: "00000000-0000-4000-8000-0000000b0001",
     versionId: "00000000-0000-4000-8000-0000000d0001",
-    numero: "A35173-20261118-090000",
+    numero: "A00001-20261118-090000",
     indice: "A",
     modele: "relais",
     modeleVersion: "1.0.0",
@@ -156,7 +156,7 @@ export function completer(d: PvRelaisData): PvRelaisData {
   const cm = d.circuitsMesure;
   return {
     ...d,
-    entete: { ...d.entete, numeroDocument: d.entete.numeroDocument || "GAU11_AUT_009", statutDocument: "CMS" },
+    entete: { ...d.entete, numeroDocument: d.entete.numeroDocument || "DEMO1_AUT_009", statutDocument: "CMS" },
     generalites: { ...d.generalites, lieu: d.generalites.lieu || "Poste", dates: "Semaine 47" },
     testsPreliminaires: d.testsPreliminaires.map(j),
     configuration: { nomFichier: "fichier.cfg", jugement: "C" },

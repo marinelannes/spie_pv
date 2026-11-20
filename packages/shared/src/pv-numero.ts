@@ -3,7 +3,7 @@ import { parisDateTimeParts } from "./time.js";
 
 /**
  * Numéro du PV = n° d'affaire + date et heure de création, heure de Paris (spec §4.1) :
- * `<n° affaire>-<AAAAMMJJ>-<HHMMSS>`, ex. `A35173-20261119-143205`. Attribué sans réseau par la tablette.
+ * `<n° affaire>-<AAAAMMJJ>-<HHMMSS>`, ex. `A00001-20261119-143205`. Attribué sans réseau par la tablette.
  */
 export function numeroPv(numeroAffaire: string, creeLe: Date): string {
   const { date, time } = parisDateTimeParts(creeLe);
@@ -59,7 +59,7 @@ export type ExtensionFichierPv = "pdf" | "json" | "xlsx";
 
 /**
  * Nom de fichier d'un PV (spec §5.3, proposition à valider) : `PV_<famille>_<tag>_<numéro>_ind<indice>.<ext>`,
- * ex. `PV_MES_RPN_HTA_F1_A35173-20261119-143205_indA.pdf`. Caractères interdits par SharePoint remplacés.
+ * ex. `PV_MES_RPN_HTA_F1_A00001-20261119-143205_indA.pdf`. Caractères interdits par SharePoint remplacés.
  */
 export function nomFichierPv(args: {
   famille: string;

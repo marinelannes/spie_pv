@@ -12,7 +12,7 @@ import {
 
 describe("assertArchiveKey", () => {
   it("accepte une clé à plusieurs segments", () => {
-    expect(() => assertArchiveKey("pv/A35173/A35173-20261119-143205/PV_MES_x_indA.pdf")).not.toThrow();
+    expect(() => assertArchiveKey("pv/A00001/A00001-20261119-143205/PV_MES_x_indA.pdf")).not.toThrow();
   });
   it.each(["", "a//b", "../x", "a/./b", "a\\b", "a/\u0001"])("refuse « %s »", (k) => {
     expect(() => assertArchiveKey(k)).toThrow(/Clé d'archive invalide/);

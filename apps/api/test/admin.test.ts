@@ -141,21 +141,21 @@ describe("affaires", () => {
 
   it("crée une affaire (numéro normalisé, noms par défaut)", async () => {
     const res = await as(admin).post("/api/admin/affaires", {
-      numero: "a35173",
-      client: "Client GAU11",
-      projet: "Stockage batteries – GAU11",
-      site: "GAU11",
+      numero: "a00001",
+      client: "Client DEMO1",
+      projet: "Stockage batteries – DEMO1",
+      site: "DEMO1",
       valideParDefaut: "V. Validateur",
       approuveParDefaut: "A. Approbateur",
     });
     expect(res.statusCode).toBe(201);
     const a = res.json<AffaireDetailDto>();
-    expect(a).toMatchObject({ numero: "A35173", archivee: false, dossierSharePoint: null, affectations: [] });
+    expect(a).toMatchObject({ numero: "A00001", archivee: false, dossierSharePoint: null, affectations: [] });
     affaireId = a.id;
   });
 
   it("refuse un numéro déjà utilisé", async () => {
-    const res = await as(admin).post("/api/admin/affaires", { numero: "A35173", client: "X", projet: "Y" });
+    const res = await as(admin).post("/api/admin/affaires", { numero: "A00001", client: "X", projet: "Y" });
     expect(res.statusCode).toBe(409);
   });
 
@@ -209,9 +209,9 @@ describe("affaires", () => {
     await as(admin).post("/api/admin/affaires", { numero: "B99999", client: "Autre", projet: "Autre projet" });
 
     let mine = (await as(tech).get("/api/affaires")).json<AffaireDto[]>();
-    expect(mine.map((a) => a.numero)).toEqual(["A35173"]);
+    expect(mine.map((a) => a.numero)).toEqual(["A00001"]);
     const all = (await as(admin).get("/api/affaires")).json<AffaireDto[]>();
-    expect(all.map((a) => a.numero)).toEqual(["A35173", "B99999"]);
+    expect(all.map((a) => a.numero)).toEqual(["A00001", "B99999"]);
 
     await as(admin).patch(`/api/admin/affaires/${affaireId}`, { archivee: true });
     mine = (await as(tech).get("/api/affaires")).json<AffaireDto[]>();
@@ -222,7 +222,7 @@ describe("affaires", () => {
     const actives = (await as(admin).get("/api/admin/affaires")).json<AffaireListItemDto[]>();
     expect(actives.map((a) => a.numero)).toEqual(["B99999"]);
     const archivees = (await as(admin).get("/api/admin/affaires?archivees=oui")).json<AffaireListItemDto[]>();
-    expect(archivees).toMatchObject([{ numero: "A35173", nbAffectes: 1 }]);
+    expect(archivees).toMatchObject([{ numero: "A00001", nbAffectes: 1 }]);
     const toutes = (await as(admin).get("/api/admin/affaires?archivees=toutes")).json<AffaireListItemDto[]>();
     expect(toutes).toHaveLength(2);
   });
@@ -241,7 +241,7 @@ describe("affaires", () => {
       expect(actions).toContain(a);
     }
     const created = entries.filter((e) => e.action === "affaire.created");
-    expect(created.map((e) => e.details?.numero)).toEqual(["B99999", "A35173"]); // plus récent d'abord
+    expect(created.map((e) => e.details?.numero)).toEqual(["B99999", "A00001"]); // plus récent d'abord
     expect(created[0]!.actor).toMatchObject({ email: "admin@spie.test" });
 
     const page2 = (await as(admin).get(`/api/admin/audit?limit=2&before=${entries[1]!.id}`)).json<AuditEntryDto[]>();

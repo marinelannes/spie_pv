@@ -5,7 +5,7 @@ import type { PvDocument } from "@spie/shared";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CorpsPvRelais } from "./relais/document.js";
-import { CSS_PV_RELAIS } from "./styles.js";
+import { CSS_APERCU_ECRAN, CSS_PV_RELAIS } from "./styles.js";
 
 export { PAGED_HANDLERS_JS, SCRIPTS_APERCU } from "./paged-handlers.js";
 export { CSS_PV_RELAIS } from "./styles.js";
@@ -38,7 +38,7 @@ export function renderPvRelaisHtml(doc: PvDocument, opts: RenderOptions = {}): s
   return (
     `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">` +
     `<meta name="viewport" content="width=device-width, initial-scale=1">` +
-    `<title>${escapeAttr(titre)}</title><style>${CSS_PV_RELAIS}</style></head>` +
+    `<title>${escapeAttr(titre)}</title><style>${CSS_PV_RELAIS}</style><style media="screen" data-pagedjs-ignore>${CSS_APERCU_ECRAN}</style></head>` +
     `<body${apercu ? ' class="apercu"' : ""}>${corps}${scripts}</body></html>`
   );
 }

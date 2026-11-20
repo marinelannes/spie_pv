@@ -29,7 +29,7 @@ describe.skipIf(!existsSync(FICHIER))("liste GAU11_AUT_009 réelle (affaire A351
 
   beforeAll(async () => {
     t = await createTestApp();
-    s = await scenario(t);
+    s = await scenario(t, "A35173"); // numéro d'affaire du fichier réel
     contenuBase64 = (await readFile(FICHIER)).toString("base64");
   });
   afterAll(() => t.close());
@@ -114,7 +114,7 @@ describe.skipIf(!existsSync(FICHIER))("liste GAU11_AUT_009 réelle (affaire A351
     expect(await t.traitement.traiterEchus()).toBe(3);
     const st = (await as(t, s.techToken).get(`/api/pv-versions/${pv.versionId}/status`)).json<PvVersionStatusDto>();
     expect(st.statut).toBe("depose");
-    const dossier = join(t.dir, "sharepoint", "Documents partagés", "Affaires", "A35173 - Stockage batteries GAU11");
+    const dossier = join(t.dir, "sharepoint", "Documents partagés", "Affaires", "A00001 - Stockage batteries DEMO1");
     expect(existsSync(join(dossier, `PV_MES_RPN_HTA_F1_${pv.numero}_indA.pdf`))).toBe(true);
     expect(existsSync(join(dossier, `PV_MES_RPN_HTA_F1_${pv.numero}_indA.xlsx`))).toBe(true);
   });

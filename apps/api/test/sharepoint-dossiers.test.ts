@@ -126,8 +126,8 @@ describe("ensureFolderPath", () => {
   afterAll(() => rm(dir, { recursive: true, force: true }));
 
   it("descend dans les dossiers existants", async () => {
-    const f = await ensureFolderPath(sp, driveId, "root", ["Affaires", "A35173 - Stockage batteries GAU11"], false);
-    expect(f.path).toBe("Documents partagés / Affaires / A35173 - Stockage batteries GAU11");
+    const f = await ensureFolderPath(sp, driveId, "root", ["Affaires", "A00001 - Stockage batteries DEMO1"], false);
+    expect(f.path).toBe("Documents partagés / Affaires / A00001 - Stockage batteries DEMO1");
   });
 
   it("sans chemin relatif, renvoie le dossier racine de l'affaire", async () => {

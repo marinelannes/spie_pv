@@ -25,11 +25,11 @@ const PNG = "data:image/png;base64,AAAA";
 function revisionA(): PvRelaisData {
   const d = creerPvRelais({
     affaire: {
-      numero: "A35173",
+      numero: "A00001",
       client: "Client",
       projet: "Projet",
-      valideParDefaut: "F. BUCAU",
-      approuveParDefaut: "F. DELORDI",
+      valideParDefaut: "V. VALIDEUR",
+      approuveParDefaut: "A. APPROBATEUR",
     },
     es: null,
     date: "2026-11-19",
@@ -78,8 +78,8 @@ describe("création de la révision suivante (spec §3.4)", () => {
         indice: "B",
         date: "2026-12-01",
         ecritPar: "",
-        validePar: "F. BUCAU",
-        approuvePar: "F. DELORDI",
+        validePar: "V. VALIDEUR",
+        approuvePar: "A. APPROBATEUR",
         modifications: "Levée de la réserve n°1",
       },
     ]);
@@ -206,7 +206,7 @@ describe("valeurs modifiées dans une révision", () => {
       ...preparees,
       entete: { ...preparees.entete, statutDocument: null },
       revisions: preparees.revisions.map((r) => ({ ...r, ecritPar: "" })),
-      generalites: { ...preparees.generalites, lieu: "Poste GAU11" },
+      generalites: { ...preparees.generalites, lieu: "Poste DEMO1" },
       observations: [],
       reserves: [],
       conclusion: { materiel: null },
@@ -215,7 +215,7 @@ describe("valeurs modifiées dans une révision", () => {
         client: { nom: "", date: "", signature: null, commentaires: "", refus: null },
       },
     };
-    const b = revisionB({ ...preparees, generalites: { ...preparees.generalites, lieu: "Poste GAU11" } });
+    const b = revisionB({ ...preparees, generalites: { ...preparees.generalites, lieu: "Poste DEMO1" } });
     const base = baseSuiviRevision(prepareesA, "B")!;
     expect(base.entete.indice).toBe("B");
 

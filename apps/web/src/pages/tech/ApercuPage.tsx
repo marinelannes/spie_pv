@@ -17,7 +17,7 @@ export function ApercuPage() {
       <PageHeader
         title={`Aperçu du PV ${pv.numero}`}
         subtitle={
-          <Link to={`/pv/${pv.versionId}`} className="underline">
+          <Link to={`/pv/${pv.versionId}`} className="inline-flex min-h-12 items-center underline">
             Retour au PV
           </Link>
         }

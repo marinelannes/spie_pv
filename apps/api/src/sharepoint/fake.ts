@@ -180,7 +180,7 @@ export class FakeSharePointClient implements SharePointClient {
         const fresh = !existsSync(dir);
         await mkdir(dir, { recursive: true });
         if (fresh) {
-          await mkdir(join(dir, "Affaires", "A35173 - Stockage batteries GAU11", "03 - Mise en service", "PV"), {
+          await mkdir(join(dir, "Affaires", "A00001 - Stockage batteries DEMO1", "03 - Mise en service", "PV"), {
             recursive: true,
           });
         }

@@ -6,7 +6,13 @@ import type { PvRelaisData } from "./pv-relais.js";
 import { STATUTS_SUIVI, statutSuivi } from "./pv-statuts.js";
 
 const CTX = {
-  affaire: { numero: "A35173", client: "HUAWEI", projet: "GAU11", valideParDefaut: "F. BUCAU", approuveParDefaut: "" },
+  affaire: {
+    numero: "A00001",
+    client: "CLIENT DEMO",
+    projet: "DEMO1",
+    valideParDefaut: "V. VALIDEUR",
+    approuveParDefaut: "",
+  },
   date: "2026-11-19",
 };
 
@@ -69,10 +75,10 @@ describe("valeurLisible : plus de JSON brut", () => {
         indice: "A",
         date: "2026-11-19",
         ecritPar: "",
-        validePar: "F. BUCAU",
+        validePar: "V. VALIDEUR",
         approuvePar: "",
       }),
-    ).toBe("Indice : A\nDate : 2026-11-19\nValidé par : F. BUCAU");
+    ).toBe("Indice : A\nDate : 2026-11-19\nValidé par : V. VALIDEUR");
     expect(valeurLisible([{ fr: "Contrôle fil à fil", en: "" }, "x"])).toBe("Texte : Contrôle fil à fil\nx");
   });
 });

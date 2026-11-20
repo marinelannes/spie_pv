@@ -16,6 +16,7 @@ import { isoDateParis } from "../../lib/format";
 import { creerEnregistreurDiffere, flushALaFermeture } from "../../offline/autosave";
 import type { LocalPv } from "../../offline/db";
 import { PvLocalError, avecEcritPar, enregistrerDonnees, messageClotAilleurs, signerPv } from "../../offline/pv-local";
+import { effacerSecours, secoursALaFermeture } from "../../offline/secours";
 import { useDb, useSync } from "../../offline/SyncProvider";
 import { EditeurContext } from "../../pv/editor/context";
 import { ChampTexte, ChoixBoutons } from "../../pv/editor/fields";
@@ -67,17 +68,23 @@ function Signature({ pv }: { pv: LocalPv }) {
   const [enCours, setEnCours] = useState(false);
   const trace = useCallback(() => ({ par: user.nom, le: new Date().toISOString() }), [user.nom]);
   const enregistreur = useMemo(
-    () => creerEnregistreurDiffere<PvRelaisData>((d) => enregistrerDonnees(db, pv.versionId, d, trace())),
-    [db, pv.versionId, trace],
+    () =>
+      creerEnregistreurDiffere<PvRelaisData>(async (d) => {
+        await enregistrerDonnees(db, pv.versionId, d, trace());
+        effacerSecours(user.id, pv.versionId);
+      }),
+    [db, pv.versionId, trace, user.id],
   );
   const modifie = useRef(false);
   useEffect(() => {
     const stop = flushALaFermeture(() => enregistreur.flush());
+    const stopSecours = secoursALaFermeture(user.id, pv.versionId, () => enregistreur.nonEnregistree);
     return () => {
       stop();
+      stopSecours();
       void enregistreur.flush();
     };
-  }, [enregistreur]);
+  }, [enregistreur, user.id, pv.versionId]);
   useEffect(() => {
     if (modifie.current) enregistreur.planifier(donnees);
   }, [donnees, enregistreur]);
@@ -134,7 +141,7 @@ function Signature({ pv }: { pv: LocalPv }) {
       <PageHeader
         title={`Signature du PV ${pv.numero}`}
         subtitle={
-          <Link to={`/pv/${pv.versionId}`} className="underline">
+          <Link to={`/pv/${pv.versionId}`} className="inline-flex min-h-12 items-center underline">
             Retour à la saisie
           </Link>
         }

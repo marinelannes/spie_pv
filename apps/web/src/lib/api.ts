@@ -41,11 +41,47 @@ async function toApiError(res: Response): Promise<ApiError> {
   }
 }
 
+/**
+ * Délai au-delà duquel une requête sans réponse est abandonnée. Sans lui, un réseau qui « pend » (Wi-Fi de chantier,
+ * portail captif) bloquerait la synchronisation indéfiniment, sans message. L'envoi d'un PV signé (signatures
+ * comprises) a plus de temps qu'une lecture.
+ */
+export const DELAI_LECTURE_MS = 30_000;
+export const DELAI_ENVOI_MS = 120_000;
+
+const SERVEUR_MUET = "Le serveur ne répond pas. Vérifiez la connexion réseau.";
+
+/** `fetch` abandonné après `delaiMs` sans réponse : lève alors ApiError(0, "network"). */
+async function fetchAvecDelai(path: string, init: RequestInit, delaiMs: number): Promise<Response> {
+  const controleur = new AbortController();
+  let expire = false;
+  const minuteur = setTimeout(() => {
+    expire = true;
+    controleur.abort();
+  }, delaiMs);
+  // Annulation demandée par l'appelant : transmise telle quelle.
+  const annuler = () => controleur.abort();
+  init.signal?.addEventListener("abort", annuler);
+  try {
+    return await fetch(path, { ...init, signal: controleur.signal });
+  } catch (err) {
+    if (expire) throw new ApiError(0, "network", SERVEUR_MUET);
+    throw err;
+  } finally {
+    clearTimeout(minuteur);
+    init.signal?.removeEventListener("abort", annuler);
+  }
+}
+
 /** Rafraîchit la session via le cookie. Une seule requête à la fois, même si plusieurs appels échouent ensemble. */
 export function refreshSession(): Promise<SessionResponse | null> {
   refreshInFlight ??= (async () => {
     try {
-      const res = await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" });
+      const res = await fetchAvecDelai(
+        "/api/auth/refresh",
+        { method: "POST", credentials: "same-origin" },
+        DELAI_LECTURE_MS,
+      );
       if (!res.ok) {
         setSession(null);
         return null;
@@ -80,15 +116,19 @@ export async function apiFetch(path: string, opts: RequestOptions = {}, retried 
 
   let res: Response;
   try {
-    res = await fetch(path, {
-      method: opts.method ?? "GET",
-      headers,
-      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
-      credentials: "same-origin",
-      signal: opts.signal,
-    });
+    res = await fetchAvecDelai(
+      path,
+      {
+        method: opts.method ?? "GET",
+        headers,
+        body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+        credentials: "same-origin",
+        signal: opts.signal,
+      },
+      opts.body === undefined ? DELAI_LECTURE_MS : DELAI_ENVOI_MS,
+    );
   } catch (err) {
-    if ((err as Error).name === "AbortError") throw err;
+    if (err instanceof ApiError || (err as Error).name === "AbortError") throw err;
     throw new ApiError(0, "network", "Serveur injoignable. Vérifiez la connexion réseau.");
   }
 

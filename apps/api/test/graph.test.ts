@@ -43,7 +43,7 @@ describe("GraphSharePointClient", () => {
     const res = await client.uploadFile({
       driveId: "b!drive",
       parentItemId: "dossier",
-      fileName: "PV_MES_RPN_HTA_F1_A35173-20261119-143205_indA.pdf",
+      fileName: "PV_MES_RPN_HTA_F1_A00001-20261119-143205_indA.pdf",
       content: new Uint8Array([1, 2, 3]),
       contentType: "application/pdf",
     });
@@ -51,7 +51,7 @@ describe("GraphSharePointClient", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]!.method).toBe("PUT");
     expect(calls[0]!.url).toBe(
-      "https://graph.microsoft.com/v1.0/drives/b!drive/items/dossier:/PV_MES_RPN_HTA_F1_A35173-20261119-143205_indA.pdf:/content" +
+      "https://graph.microsoft.com/v1.0/drives/b!drive/items/dossier:/PV_MES_RPN_HTA_F1_A00001-20261119-143205_indA.pdf:/content" +
         "?@microsoft.graph.conflictBehavior=fail",
     );
     expect(calls[0]!.headers).toMatchObject({ Authorization: "Bearer jeton-test", "Content-Type": "application/pdf" });
@@ -149,14 +149,14 @@ describe("GraphSharePointClient", () => {
         folder: { childCount: 0 },
         parentReference: {
           id: "item-mes",
-          path: "/drives/d1/root:/Affaires/A35173%20-%20GAU11/03%20-%20Mise%20en%20service",
+          path: "/drives/d1/root:/Affaires/A00001%20-%20DEMO1/03%20-%20Mise%20en%20service",
         },
       });
     });
     const f = await client.getFolder("d1", "item-pv");
     expect(f).toMatchObject({
       itemId: "item-pv",
-      path: "Documents / Affaires / A35173 - GAU11 / 03 - Mise en service / PV",
+      path: "Documents / Affaires / A00001 - DEMO1 / 03 - Mise en service / PV",
       parentItemId: "item-mes",
     });
   });

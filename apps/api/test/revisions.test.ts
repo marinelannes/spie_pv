@@ -28,7 +28,7 @@ let recuA: PvVersionStatusDto;
 let revB: SyncPvDto;
 
 const dossierAffaire = () =>
-  join(t.dir, "sharepoint", "Documents partagés", "Affaires", "A35173 - Stockage batteries GAU11");
+  join(t.dir, "sharepoint", "Documents partagés", "Affaires", "A00001 - Stockage batteries DEMO1");
 const tech = () => as(t, s.techToken);
 const prep = () => as(t, s.prepToken);
 const detail = async () => (await prep().get(`/api/prep/pv/${pvA.pvId}`)).json<PvDetailDto>();
@@ -135,8 +135,8 @@ describe("création de la révision suivante (spec §3.4)", () => {
       indice: "B",
       date: "2026-11-19",
       ecritPar: "",
-      validePar: "F. BUCAU",
-      approuvePar: "F. DELORDI",
+      validePar: "V. VALIDEUR",
+      approuvePar: "A. APPROBATEUR",
       modifications: "Levée de la réserve n°1",
     });
     // Tout le reste est repris : mesures, E/S, conclusion, réserves.
@@ -211,7 +211,7 @@ describe("levée de réserves et suivi (spec §4.3)", () => {
         versionId: pvA.versionId,
         numeroPv: pvA.numero,
         indicePv: "A",
-        affaireNumero: "A35173",
+        affaireNumero: "A00001",
         equipementTag: "RPN_HTA_F1",
         numero: 1,
         controle: "Repérage des câbles",

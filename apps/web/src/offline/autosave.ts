@@ -8,6 +8,8 @@ export interface EnregistreurDiffere<T> {
   flush(): Promise<void>;
   /** Une valeur attend d'être enregistrée. */
   readonly enAttente: boolean;
+  /** Dernière valeur planifiée dont l'écriture n'a pas encore abouti (en attente ou en cours) ; sinon undefined. */
+  readonly nonEnregistree: T | undefined;
 }
 
 export function creerEnregistreurDiffere<T>(
@@ -17,6 +19,7 @@ export function creerEnregistreurDiffere<T>(
 ): EnregistreurDiffere<T> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let derniere: { valeur: T } | null = null;
+  let aConfirmer: { valeur: T } | null = null;
   let chaine: Promise<void> = Promise.resolve();
 
   const ecrire = (): Promise<void> => {
@@ -31,7 +34,9 @@ export function creerEnregistreurDiffere<T>(
     chaine = chaine
       .then(() => enregistrer(a.valeur))
       .then(
-        () => undefined,
+        () => {
+          if (aConfirmer === a) aConfirmer = null;
+        },
         (err: unknown) => onErreur(err),
       );
     return chaine;
@@ -39,13 +44,16 @@ export function creerEnregistreurDiffere<T>(
 
   return {
     planifier(valeur) {
-      derniere = { valeur };
+      derniere = aConfirmer = { valeur };
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => void ecrire(), delaiMs);
     },
     flush: ecrire,
     get enAttente() {
       return derniere !== null;
+    },
+    get nonEnregistree() {
+      return aConfirmer?.valeur;
     },
   };
 }

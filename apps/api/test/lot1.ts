@@ -15,27 +15,27 @@ export const PNG =
 
 const CARTOUCHE = (ws: ExcelJS.Worksheet, titre: string, affaire: string) => {
   ws.getCell("B1").value = titre;
-  ws.getCell("E1").value = "N° Document\nGAU11_AUT_009";
+  ws.getCell("E1").value = "N° Document\nDEMO1_AUT_009";
   ws.getCell("E4").value = `N° AFF : ${affaire}`;
   ws.getCell("E5").value = "Statut : Rev B";
 };
 
 /**
- * Classeur de liste E/S au format de GAU11_AUT_009 (en-tête en ligne 6, données à partir de la ligne 7) :
+ * Classeur de liste E/S au format de DEMO1_AUT_009 (en-tête en ligne 6, données à partir de la ligne 7) :
  * deux départs batterie (feuille TYPE BATTERIE), deux relais HTB à associer à la main, dont un qui partage la feuille
  * HTB_TR1 avec un autre équipement (colonne TAG).
  */
-export async function classeurEs(affaire = "A35173"): Promise<string> {
+export async function classeurEs(affaire = "A00001"): Promise<string> {
   const wb = new ExcelJS.Workbook();
   const rev = wb.addWorksheet("REV");
   rev.getCell("F1").value = "LISTE ENTREES / SORTIES \nRPN";
-  rev.getCell("U1").value = "N° Document\nGAU11_AUT_009";
+  rev.getCell("U1").value = "N° Document\nDEMO1_AUT_009";
   rev.getCell("U4").value = `N° AFF : ${affaire}`;
   rev.getCell("U5").value = "Statut : Rev B";
 
   const eq = wb.addWorksheet("LISTE DES EQUIPEMENTS");
   eq.getCell("B1").value = "LISTE DES EQUIPEMENTS";
-  eq.getCell("I1").value = "N° Document\nGAU11_AUT_009";
+  eq.getCell("I1").value = "N° Document\nDEMO1_AUT_009";
   eq.getCell("I4").value = `N° AFF : ${affaire}`;
   eq.getCell("I5").value = "Statut : Rev B";
   eq.getRow(6).values = [
@@ -137,10 +137,10 @@ export const as = (t: TestApp, token: string) => ({
 });
 
 /**
- * Comptes (admin, préparateur, deux techniciens), affaire A35173 dont le dossier SharePoint est celui de l'arborescence
+ * Comptes (admin, préparateur, deux techniciens), affaire A00001 dont le dossier SharePoint est celui de l'arborescence
  * d'exemple du SharePoint simulé ; préparateur et premier technicien affectés.
  */
-export async function scenario(t: TestApp, numero = "A35173"): Promise<Scenario> {
+export async function scenario(t: TestApp, numero = "A00001"): Promise<Scenario> {
   const adminId = (await seedUser(t.db, { email: "admin@spie.test", nom: "Alice Admin", role: "admin" })).id;
   const prepId = (await seedUser(t.db, { email: "prep@spie.test", nom: "Paul Préparateur", role: "preparateur" })).id;
   const techId = (await seedUser(t.db, { email: "tech@spie.test", nom: "Théo Technicien", role: "technicien" })).id;
@@ -161,11 +161,11 @@ export async function scenario(t: TestApp, numero = "A35173"): Promise<Scenario>
   const dossier = affairesDir.items[0]!;
   const res = await admin.post("/api/admin/affaires", {
     numero,
-    client: "HUAWEI TECHNOLOGIES FRANCE",
-    projet: "Stockage batteries – GAU11",
-    site: "GAU11",
-    valideParDefaut: "F. BUCAU",
-    approuveParDefaut: "F. DELORDI",
+    client: "CLIENT DEMO INDUSTRIES SAS",
+    projet: "Stockage batteries – DEMO1",
+    site: "DEMO1",
+    valideParDefaut: "V. VALIDEUR",
+    approuveParDefaut: "A. APPROBATEUR",
     dossierSharePoint: { driveId, itemId: dossier.id, path: dossier.name, webUrl: null },
   });
   if (res.statusCode !== 201) throw new Error(`affaire : ${res.body}`);
@@ -178,11 +178,11 @@ export async function scenario(t: TestApp, numero = "A35173"): Promise<Scenario>
 export function completer(d: PvRelaisData, signataire: string): PvRelaisData {
   const c = structuredClone(d);
   const juge = <T extends { jugement: unknown }>(x: T) => ({ ...x, jugement: "C" as const });
-  c.generalites.lieu = "Poste GAU11";
+  c.generalites.lieu = "Poste DEMO1";
   c.generalites.dates = "Semaine 47 (19/11/2026)";
   c.identification = c.identification.map((f) => (f.id === "numero-serie" ? { ...f, valeur: "BF2511000123" } : f));
   c.testsPreliminaires = c.testsPreliminaires.map((x) => ({ ...juge(x), valeur: "125 V" }));
-  c.configuration = { nomFichier: "GAU11_RPN_HTA_F1.dex5", jugement: "C" };
+  c.configuration = { nomFichier: "DEMO1_RPN_HTA_F1.dex5", jugement: "C" };
   const cm = c.circuitsMesure;
   cm.transformateurs = cm.transformateurs.map(juge);
   cm.champTournant = { valeur: "Direct", jugement: "C" };

@@ -481,9 +481,9 @@ describe("PvEditor", () => {
 
   it("repère une valeur préparée corrigée sur site et navigue entre sections", () => {
     const prep = donneesPreparees();
-    const site = { ...prep, generalites: { ...prep.generalites, lieu: "Poste GAU11 bis" } };
+    const site = { ...prep, generalites: { ...prep.generalites, lieu: "Poste DEMO1 bis" } };
     render(<Harnais initial={site} preparees={prep} section="generalites" />);
-    expect(screen.getByText("Corrigé sur site — préparé : « Poste GAU11 »")).toBeTruthy();
+    expect(screen.getByText("Corrigé sur site — préparé : « Poste DEMO1 »")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Matériel de test →/ }));
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("4. Matériel de test");
   });

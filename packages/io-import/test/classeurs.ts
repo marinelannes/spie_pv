@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import type { CellValue, Workbook, Worksheet } from "exceljs";
 
-/** Construction de classeurs de test qui reproduisent la structure de la liste E/S GAU11_AUT_009. */
+/** Construction de classeurs de test qui reproduisent la structure de la liste E/S DEMO1_AUT_009. */
 
 export const EN_TETE_ES = ["CARTES", "TAG CELLULE / EQUIPEMENT", "TYPE", "COMMENTAIRE", "ADRESSE"];
 export const EN_TETE_EQUIPEMENTS = [
@@ -31,8 +31,8 @@ export function nouveauClasseur(): Workbook {
 /** Cartouche des lignes 1 à 5 : « N° Document\n… », « N° AFF : … », « Statut : Rev … ». */
 export function ajouterCartouche(ws: Worksheet, c: Cartouche = {}): void {
   const col = c.colonne ?? 5;
-  ws.getCell(1, col).value = `N° Document\n${c.document ?? "GAU11_AUT_009"}`;
-  ws.getCell(4, col).value = `N° AFF : ${c.affaire ?? "A35173"}`;
+  ws.getCell(1, col).value = `N° Document\n${c.document ?? "DEMO1_AUT_009"}`;
+  ws.getCell(4, col).value = `N° AFF : ${c.affaire ?? "A00001"}`;
   ws.getCell(5, col).value = `Statut : Rev ${c.revision ?? "B"}`;
 }
 

@@ -1,0 +1,18 @@
+{
+  "name": "@spie/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tests de bout en bout Playwright, en viewport tablette (iPad portrait et paysage).",
+  "type": "module",
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:rapport": "playwright show-report",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "1.65.1",
+    "@types/node": "^22.10.5",
+    "exceljs": "^4.4.0"
+  }
+}

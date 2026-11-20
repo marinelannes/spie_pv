@@ -188,7 +188,7 @@ describe("PV déposés et révisions locales", () => {
   it("PV déposés hors tablette : ceux dont aucune révision n'est sur la tablette", () => {
     const affaire = {
       ...LOCAL_AFFAIRE,
-      deposes: [DEPOSE, { ...DEPOSE, pvId: "p2", numero: "A35173-20261101-080000" }],
+      deposes: [DEPOSE, { ...DEPOSE, pvId: "p2", numero: "A00001-20261101-080000" }],
     };
     expect(deposesHorsTablette(affaire, [local({ statut: "depose" })]).map((d) => d.pvId)).toEqual(["p2"]);
     expect(deposesHorsTablette(LOCAL_AFFAIRE, [])).toEqual([]);

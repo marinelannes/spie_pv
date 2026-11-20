@@ -1,5 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LOCAL_AFFAIRE } from "../test/fixtures";
 import { creerBase, lireMeta, majMeta, metaEnLecture, type UserDb } from "./db";
 import { useLive } from "./live";
@@ -50,7 +50,8 @@ describe("metaEnLecture dans une requête live (« Prêt pour le hors ligne »)"
     const erreurs: unknown[] = [];
     const { liveQuery } = await import("dexie");
     const sub = liveQuery(() => lireMeta(db)).subscribe({ error: (e) => erreurs.push(e) });
-    await new Promise((r) => setTimeout(r, 50));
+    // On attend l'erreur elle-même, pas une durée fixe (50 ms ne suffisaient pas sur une machine chargée).
+    await vi.waitFor(() => expect(erreurs).toHaveLength(1));
     sub.unsubscribe();
     expect(String((erreurs[0] as Error | undefined)?.name)).toBe("ReadOnlyError");
   });

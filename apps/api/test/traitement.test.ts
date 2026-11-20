@@ -20,7 +20,7 @@ import { as, classeurEs, envoiDuPrepare, scenario, type Scenario } from "./lot1.
 
 /** Dossier de l'affaire dans le SharePoint simulé (arborescence d'exemple). */
 const dossierAffaire = (t: TestApp) =>
-  join(t.dir, "sharepoint", "Documents partagés", "Affaires", "A35173 - Stockage batteries GAU11");
+  join(t.dir, "sharepoint", "Documents partagés", "Affaires", "A00001 - Stockage batteries DEMO1");
 
 /** Affaire, liste E/S, PV préparé pour RPN_HTA_F1 affecté au technicien, puis signé et envoyé. */
 async function pvRecu(t: TestApp, s: Scenario, tag = "RPN_HTA_F1"): Promise<PvVersionStatusDto> {
@@ -98,7 +98,7 @@ describe("génération des fichiers et dépôt SharePoint (spec §3.3, §5)", ()
     expect(st.statut).toBe("depose");
     expect(st.depots.every((d) => d.statut === "depose" && d.webUrl?.startsWith("/sharepoint-simule/"))).toBe(true);
     expect(st.depots[0]!.cheminSharePoint).toBe(
-      `Documents partagés / Affaires / A35173 - Stockage batteries GAU11 / 03 - Mise en service / PV / ${st.depots[0]!.nom}`,
+      `Documents partagés / Affaires / A00001 - Stockage batteries DEMO1 / 03 - Mise en service / PV / ${st.depots[0]!.nom}`,
     );
     expect(t.pdfRendus()).toBe(1);
     expect(await t.traitement.traiterEchus()).toBe(0);
@@ -113,9 +113,9 @@ describe("génération des fichiers et dépôt SharePoint (spec §3.3, §5)", ()
       format: "spie-pv/1",
       pv: { id: recu.pvId, numero: recu.numero, modele: "relais", modeleVersion: "1.0.0", famille: "MES" },
       version: { id: recu.versionId, indice: "A", statutDocument: "CMS", signeLe: "2026-11-19T15:00:00.000Z" },
-      affaire: { numero: "A35173", client: "HUAWEI TECHNOLOGIES FRANCE" },
+      affaire: { numero: "A00001", client: "CLIENT DEMO INDUSTRIES SAS" },
       equipement: { tag: "RPN_HTA_F1" },
-      listeEs: { reference: "GAU11_AUT_009", revision: "B", version: 1 },
+      listeEs: { reference: "DEMO1_AUT_009", revision: "B", version: 1 },
       meta: { tabletteId: "tablette-test", signePar: { nom: "Théo Technicien" } },
     });
     expect(doc.version.empreinte).toMatch(/^[0-9a-f]{64}$/);
@@ -145,7 +145,7 @@ describe("génération des fichiers et dépôt SharePoint (spec §3.3, §5)", ()
     expect(pdf.body.startsWith("%PDF")).toBe(true);
     expect((await as(t, s.techToken).get(`/api/prep/versions/${recu.versionId}/fichiers/pdf`)).statusCode).toBe(403);
     expect((await prep.get(`/api/prep/versions/${recu.versionId}/fichiers/docx`)).statusCode).toBe(400);
-    expect(await t.archive.get(`pv/A35173/${recu.numero}/${recu.depots[0]!.nom}`)).not.toBeNull();
+    expect(await t.archive.get(`pv/A00001/${recu.numero}/${recu.depots[0]!.nom}`)).not.toBeNull();
   });
 
   it("la fiche affaire compte le PV comme déposé", async () => {
@@ -236,7 +236,7 @@ describe("reprises avec délai croissant puis erreur et relance (spec §5.4)", (
     expect(liste).toHaveLength(3);
     expect(liste[0]).toMatchObject({
       numero: recu.numero,
-      affaireNumero: "A35173",
+      affaireNumero: "A00001",
       equipementTag: "RPN_HTA_F1",
       statut: "erreur",
       tentatives: 6,

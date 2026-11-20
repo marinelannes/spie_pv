@@ -124,11 +124,11 @@ describe("renderPvRelaisHtml — structure", () => {
     expect(entete(html)).toMatch(/<img src="data:image\/png;base64,[^"]+" alt="SPIE"/);
     expect(e).toContain("PV DE TEST RELAIS DE PROTECTION");
     expect(e).toContain("TEST SHEET PROTECTION RELAY");
-    expect(e).toContain("N° Document : GAU11_AUT_009");
-    expect(e).toContain("N° AFF : A35173");
-    expect(e).toContain("Projet : Stockage batteries – GAU11");
+    expect(e).toContain("N° Document : DEMO1_AUT_009");
+    expect(e).toContain("N° AFF : A00001");
+    expect(e).toContain("Projet : Stockage batteries – DEMO1");
     expect(e).toContain("Révision : A");
-    expect(e).toContain("A35173-20261119-143205");
+    expect(e).toContain("A00001-20261119-143205");
     expect(e).toContain("BPO : Bon Pour Observation — BPE : Bon Pour Exécution — CMS : Conforme à la Mise en Service");
     expect(html).toContain("position: running(entete)");
   });
@@ -161,8 +161,8 @@ describe("renderPvRelaisHtml — structure", () => {
   });
 
   it("page de garde : client, projet et tableau des révisions (lignes vides, révisions, en-tête en bas)", () => {
-    expect(t).toContain("Client / Customer : HUAWEI TECHNOLOGIES FRANCE");
-    expect(t).toContain("Projet / Project : Stockage batteries – GAU11");
+    expect(t).toContain("Client / Customer : CLIENT DEMO INDUSTRIES SAS");
+    expect(t).toContain("Projet / Project : Stockage batteries – DEMO1");
     const rev = html.slice(
       html.indexOf('class="t revisions"'),
       html.indexOf("</table>", html.indexOf('class="t revisions"')),
@@ -170,7 +170,7 @@ describe("renderPvRelaisHtml — structure", () => {
     const lignes = [...rev.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((m) => texte(m[1]!).trim());
     expect(lignes).toHaveLength(8);
     expect(lignes.slice(0, 6).every((l) => l === "")).toBe(true);
-    expect(lignes[6]).toBe("A 19/11/2026 T. CASTILLON F. BUCAU F. DELORDI Première édition / First issue");
+    expect(lignes[6]).toBe("A 19/11/2026 T. TECHNICIEN V. VALIDEUR A. APPROBATEUR Première édition / First issue");
     expect(lignes[7]).toMatch(/^Rév Date Écrit par/);
   });
 
@@ -210,13 +210,13 @@ describe("renderPvRelaisHtml — structure", () => {
   });
 
   it("généralités, identification, tests préliminaires et configuration", () => {
-    expect(t).toContain("Les tests d'armoire sont réalisés sur le site de : Poste GAU11 — local HTA zone nord");
+    expect(t).toContain("Les tests d'armoire sont réalisés sur le site de : Poste DEMO1 — local HTA zone nord");
     expect(t).toContain("Semaine 47 (17 au 19/11/2026)");
     expect(t).toContain("Valise d'injection OMICRON");
     expect(t).toContain("Norme : IEC 60439-1");
     expect(t).toContain("Numéro de série / Serial number BF2511003214");
     expect(t).toMatch(/Mesure de la tension d'alimentation auxiliaire.*112,4 Vcc C/);
-    expect(t).toMatch(/Parameters filename GAU11_RPN_HTA_F1_V3\.dex5 C/);
+    expect(t).toMatch(/Parameters filename DEMO1_RPN_HTA_F1_V3\.dex5 C/);
   });
 
   it("circuits de mesure : TP/TC/tores, champ tournant, sens de câblage, injections, défaut terre, schéma, tresse", () => {
@@ -255,7 +255,7 @@ describe("renderPvRelaisHtml — structure", () => {
     expect(texte(es)).toContain("BI 1.05 E TOR POSITION DISJ. OUVERT NC OK NC Libellé absent Remontée SCADA absente");
     expect(es).toContain('<td class="j nc">NC</td>');
     expect(t).toContain("E/S testées / tested : 33 / 33 — NC : 1 — réserves / spare : 2");
-    expect(t).toContain("Liste E/S : GAU11_AUT_009 rév. B (version 1) — feuille « TYPE BATTERIE »");
+    expect(t).toContain("Liste E/S : DEMO1_AUT_009 rév. B (version 1) — feuille « TYPE BATTERIE »");
   });
 
   it("LED : deux colonnes comme le modèle (A-E à gauche, F-J à droite)", () => {
@@ -293,11 +293,11 @@ describe("renderPvRelaisHtml — structure", () => {
     expect(html).toContain(`<img src="${SIGNATURE_EXEMPLE_SPIE}" alt="Signature SPIE"/>`);
     expect(html).toContain(`<img src="${SIGNATURE_EXEMPLE_CLIENT}" alt="Signature client"/>`);
     expect(t).toContain("DATE 19/11/2026 19/11/2026");
-    expect(t).toContain("NOM / NAME T. CASTILLON J. DUPONT");
+    expect(t).toContain("NOM / NAME T. TECHNICIEN J. DUPONT");
     expect(t).toContain("Réserve n°1 à lever avant la mise en service.");
     expect(t).toContain(`SHA-256 fingerprint : ${doc.version.empreinte}`);
     expect(t).toContain(
-      "PV n° A35173-20261119-143205 — indice A — modèle relais v1.0.0 — signé le 19/11/2026 16:02 par T. CASTILLON",
+      "PV n° A00001-20261119-143205 — indice A — modèle relais v1.0.0 — signé le 19/11/2026 16:02 par T. TECHNICIEN",
     );
   });
 
@@ -331,7 +331,7 @@ describe("renderPvRelaisHtml — options", () => {
     expect(renderPvRelaisHtml(doc)).not.toContain('id="s-annexe"');
     const h = renderPvRelaisHtml(doc, { signalerModifications: true });
     expect(h).toContain('id="s-annexe"');
-    expect(texte(h)).toMatch(/fonctions\[ex-\d+\]\.reglages 6250A 6300A T\. CASTILLON, 19\/11\/2026 15:20/);
+    expect(texte(h)).toMatch(/fonctions\[ex-\d+\]\.reglages 6250A 6300A T\. TECHNICIEN, 19\/11\/2026 15:20/);
     // Rien à signaler : pas d'annexe vide.
     expect(renderPvRelaisHtml({ ...doc, modifications: [] }, { signalerModifications: true })).not.toContain(
       'id="s-annexe"',

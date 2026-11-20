@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Role } from "./roles.js";
 
 /**
- * Numéro d'affaire (ex. « A35173 »). Il entre dans le numéro des PV et dans les noms de fichiers
+ * Numéro d'affaire (ex. « A00001 »). Il entre dans le numéro des PV et dans les noms de fichiers
  * (spec §4.1, §5.3) : on n'accepte que lettres, chiffres, tiret et souligné, normalisés en majuscules.
  */
 export const numeroAffaireSchema = z

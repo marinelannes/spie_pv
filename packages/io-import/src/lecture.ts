@@ -14,9 +14,9 @@ import type { Worksheet } from "exceljs";
 import { lettreColonne, texteCellule, texteLigne } from "./cellules.js";
 
 /**
- * Lecture d'une « Liste entrées / sorties » (spec §4.4), ex. `GAU11_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx` :
+ * Lecture d'une « Liste entrées / sorties » (spec §4.4), ex. `DEMO1_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx` :
  * - référence, révision et n° d'affaire dans les en-têtes des feuilles (« N° Document », « Statut : Rev B »,
- *   « N° AFF : A35173 »), avec repli sur la page de garde `PdG_Client` ;
+ *   « N° AFF : A00001 »), avec repli sur la page de garde `PdG_Client` ;
  * - feuille `LISTE DES EQUIPEMENTS` : une ligne par équipement ;
  * - une feuille par type de cellule ou tranche : une ligne par E/S.
  *
@@ -125,7 +125,7 @@ function lireIdentite(wb: ExcelJS.Workbook): { reference: string; revision: stri
   return { reference, revision, numeroAffaire: plusFrequent(affs) };
 }
 
-/** Page de garde : la référence est un code du type `GAU11_AUT_009` dans le cartouche. */
+/** Page de garde : la référence est un code du type `DEMO1_AUT_009` dans le cartouche. */
 function referencePageDeGarde(ws: Worksheet): string {
   const max = Math.min(10, ws.rowCount);
   for (let r = 1; r <= max; r++) {

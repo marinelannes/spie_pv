@@ -42,7 +42,7 @@ describe("changePasswordRequestSchema", () => {
 
 describe("numeroAffaireSchema", () => {
   it("normalise en majuscules", () => {
-    expect(numeroAffaireSchema.parse(" a35173 ")).toBe("A35173");
+    expect(numeroAffaireSchema.parse(" a00001 ")).toBe("A00001");
   });
 
   it("refuse les caractères non autorisés dans un nom de fichier", () => {
@@ -54,9 +54,9 @@ describe("numeroAffaireSchema", () => {
 describe("createAffaireRequestSchema", () => {
   it("applique les valeurs par défaut", () => {
     const a = createAffaireRequestSchema.parse({
-      numero: "A35173",
+      numero: "A00001",
       client: "RTE",
-      projet: "Stockage batteries – GAU11",
+      projet: "Stockage batteries – DEMO1",
     });
     expect(a).toMatchObject({ site: "", valideParDefaut: "", approuveParDefaut: "", dossierSharePoint: null });
   });

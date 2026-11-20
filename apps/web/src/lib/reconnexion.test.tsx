@@ -1,6 +1,6 @@
 import type { AuthUser } from "@spie/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { setSession } from "./api";
 import { AuthProvider, installerReconnexionAuto, useAuth } from "./auth";
@@ -83,10 +83,12 @@ describe("AuthProvider : de « hors ligne » à « connecté » sans interventio
     expect(await screen.findByText("offline Théo")).toBeTruthy();
 
     serveurJoignable = true;
-    await act(async () => {
+    // Un signal « online » reçu pendant qu'une tentative est encore en cours est ignoré (la suivante est périodique) :
+    // on le répète jusqu'au rétablissement, au lieu de compter sur un seul envoi au bon moment.
+    await waitFor(() => {
       window.dispatchEvent(new Event("online"));
+      expect(screen.getByText("authenticated Théo")).toBeTruthy();
     });
-    expect(await screen.findByText("authenticated Théo")).toBeTruthy();
   });
 
   it("session expirée au retour du réseau : retour à la connexion (les données locales restent)", async () => {

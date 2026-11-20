@@ -50,11 +50,11 @@ const POINTS: PointEsSource[] = [
 
 function documentPv(opts: { feuille?: string; filtreTag?: string | null; equipement?: boolean } = {}): PvDocument {
   const donnees = creerPvRelais({
-    affaire: { numero: "A35173", client: "HUAWEI", projet: "GAU11", valideParDefaut: "", approuveParDefaut: "" },
+    affaire: { numero: "A00001", client: "CLIENT DEMO", projet: "DEMO1", valideParDefaut: "", approuveParDefaut: "" },
     es: {
       listeId: "8a5b1c2d-0000-4000-8000-000000000001",
       listeVersion: 2,
-      referenceDocument: "GAU11_AUT_009",
+      referenceDocument: "DEMO1_AUT_009",
       revision: "B",
       feuille: opts.feuille ?? "TYPE BATTERIE",
       filtreTag: opts.filtreTag ?? null,
@@ -79,7 +79,7 @@ function documentPv(opts: { feuille?: string; filtreTag?: string | null; equipem
   ];
   return {
     format: "spie-pv/1",
-    pv: { id: "pv-1", numero: "A35173-20261119-143205", modele: "relais", modeleVersion: "1.0.0", famille: "MES" },
+    pv: { id: "pv-1", numero: "A00001-20261119-143205", modele: "relais", modeleVersion: "1.0.0", famille: "MES" },
     version: {
       id: "v-1",
       indice: "A",
@@ -87,7 +87,7 @@ function documentPv(opts: { feuille?: string; filtreTag?: string | null; equipem
       signeLe: "2026-11-19T15:00:00.000Z",
       empreinte: "a".repeat(64),
     },
-    affaire: { numero: "A35173", client: "HUAWEI", projet: "GAU11", site: "" },
+    affaire: { numero: "A00001", client: "CLIENT DEMO", projet: "DEMO1", site: "" },
     equipement:
       opts.equipement === false
         ? null
@@ -99,7 +99,7 @@ function documentPv(opts: { feuille?: string; filtreTag?: string | null; equipem
             local: "",
             tagArmoire: "",
           },
-    listeEs: { id: "8a5b1c2d-0000-4000-8000-000000000001", reference: "GAU11_AUT_009", revision: "B", version: 2 },
+    listeEs: { id: "8a5b1c2d-0000-4000-8000-000000000001", reference: "DEMO1_AUT_009", revision: "B", version: 2 },
     meta: {
       creeLe: "2026-11-19T13:32:05.000Z",
       tabletteId: "t1",
@@ -143,11 +143,11 @@ describe("exporterResultatsEs", () => {
     expect(wb.worksheets.map((w) => w.name)).toEqual(["TYPE BATTERIE"]);
     const ws = wb.worksheets[0]!;
     expect(ws.getCell("A1").value).toBe("LISTE DES ENTRÉES / SORTIES — RÉSULTATS DES ESSAIS — TYPE BATTERIE");
-    expect(ws.getCell("A2").value).toBe("N° Document : GAU11_AUT_009");
-    expect(ws.getCell("A3").value).toBe("N° AFF : A35173");
+    expect(ws.getCell("A2").value).toBe("N° Document : DEMO1_AUT_009");
+    expect(ws.getCell("A3").value).toBe("N° AFF : A00001");
     expect(ws.getCell("A4").value).toBe("Liste E/S : révision B (version 2)");
     expect(ws.getCell("A5").value).toBe(
-      "PV n° A35173-20261119-143205 — indice A — équipement RPN_HTA_F1 (RELAIS DE PROTECTION NUMERIQUE DEPART F1)",
+      "PV n° A00001-20261119-143205 — indice A — équipement RPN_HTA_F1 (RELAIS DE PROTECTION NUMERIQUE DEPART F1)",
     );
     expect(ws.getRow(6).values).toEqual([undefined, ...COLONNES_EXPORT.map((c) => c.titre)]);
     const ligne = (r: number) => (ws.getRow(r).values as unknown[]).slice(1);
@@ -231,7 +231,7 @@ describe("exporterResultatsEs", () => {
     expect(ws.name).toBe("E-S");
     expect(ws.getCell("A1").value).toBe("LISTE DES ENTRÉES / SORTIES — RÉSULTATS DES ESSAIS");
     expect(ws.getCell("A4").value).toBe("Liste E/S : révision B (version 2) — partie « PROTECTION TRANSFO DIF. »");
-    expect(ws.getCell("A5").value).toBe("PV n° A35173-20261119-143205 — indice A");
+    expect(ws.getCell("A5").value).toBe("PV n° A00001-20261119-143205 — indice A");
   });
 
   it("PV sans E/S : classeur valide avec la seule ligne d'en-tête", async () => {

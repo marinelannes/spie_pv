@@ -72,16 +72,16 @@ const SOURCE: PointEsSource[] = [
 
 const CTX: ContexteCreationPv = {
   affaire: {
-    numero: "A35173",
-    client: "HUAWEI",
-    projet: "Stockage batteries – GAU11",
-    valideParDefaut: "F. BUCAU",
-    approuveParDefaut: "F. DELORDI",
+    numero: "A00001",
+    client: "CLIENT DEMO",
+    projet: "Stockage batteries – DEMO1",
+    valideParDefaut: "V. VALIDEUR",
+    approuveParDefaut: "A. APPROBATEUR",
   },
   es: {
     listeId: "8a5b1c2d-0000-4000-8000-000000000001",
     listeVersion: 1,
-    referenceDocument: "GAU11_AUT_009",
+    referenceDocument: "DEMO1_AUT_009",
     revision: "B",
     feuille: "TYPE BATTERIE",
     filtreTag: null,
@@ -100,10 +100,10 @@ function pvComplet(): PvRelaisData {
   const j = <T extends { jugement: unknown }>(x: T) => ({ ...x, jugement: "C" as const });
   return {
     ...d,
-    generalites: { ...d.generalites, lieu: "Poste GAU11", dates: "Semaine 47" },
+    generalites: { ...d.generalites, lieu: "Poste DEMO1", dates: "Semaine 47" },
     identification: d.identification.map((f) => (f.id === "numero-serie" ? { ...f, valeur: "BF2511" } : f)),
     testsPreliminaires: d.testsPreliminaires.map(j),
-    configuration: { nomFichier: "GAU11_F1.dex5", jugement: "C" },
+    configuration: { nomFichier: "DEMO1_F1.dex5", jugement: "C" },
     circuitsMesure: {
       ...d.circuitsMesure,
       transformateurs: d.circuitsMesure.transformateurs.map(j),
@@ -134,10 +134,10 @@ describe("creerPvRelais", () => {
   it("pré-remplit l'en-tête, la révision A et les noms par défaut de l'affaire", () => {
     const d = creerPvRelais(CTX);
     expect(d.entete).toEqual({
-      numeroDocument: "GAU11_AUT_009",
-      numeroAffaire: "A35173",
-      client: "HUAWEI",
-      projet: "Stockage batteries – GAU11",
+      numeroDocument: "DEMO1_AUT_009",
+      numeroAffaire: "A00001",
+      client: "CLIENT DEMO",
+      projet: "Stockage batteries – DEMO1",
       indice: "A",
       statutDocument: null,
     });
@@ -146,8 +146,8 @@ describe("creerPvRelais", () => {
         indice: "A",
         date: "2026-11-19",
         ecritPar: "",
-        validePar: "F. BUCAU",
-        approuvePar: "F. DELORDI",
+        validePar: "V. VALIDEUR",
+        approuvePar: "A. APPROBATEUR",
         modifications: "Première édition / First issue",
       },
     ]);
@@ -157,7 +157,7 @@ describe("creerPvRelais", () => {
   it("reprend la liste E/S et coche NA les E/S de réserve", () => {
     const d = creerPvRelais(CTX);
     expect(d.es).toMatchObject({
-      referenceDocument: "GAU11_AUT_009",
+      referenceDocument: "DEMO1_AUT_009",
       revision: "B",
       feuille: "TYPE BATTERIE",
       listeVersion: 1,
@@ -233,13 +233,13 @@ describe("pvRelaisDataSchema", () => {
 
 describe("numéro de PV (spec §4.1)", () => {
   it("numéro d'affaire + date et heure de Paris", () => {
-    expect(numeroPv("A35173", new Date("2026-11-19T13:32:05Z"))).toBe("A35173-20261119-143205");
+    expect(numeroPv("A00001", new Date("2026-11-19T13:32:05Z"))).toBe("A00001-20261119-143205");
   });
 
   it("parseNumeroPv décompose un numéro valide et refuse le reste", () => {
-    expect(parseNumeroPv("A35173-20261119-143205")).toEqual({ affaire: "A35173", date: "20261119", heure: "143205" });
-    expect(parseNumeroPv("A35173-20261119-1432")).toBeNull();
-    expect(parseNumeroPv("a35173-20261119-143205")).toBeNull();
+    expect(parseNumeroPv("A00001-20261119-143205")).toEqual({ affaire: "A00001", date: "20261119", heure: "143205" });
+    expect(parseNumeroPv("A00001-20261119-1432")).toBeNull();
+    expect(parseNumeroPv("a00001-20261119-143205")).toBeNull();
   });
 
   it("delaiAvantNumero : 0 pour une nouvelle seconde, attente jusqu'à la seconde suivante sinon", () => {
@@ -256,20 +256,20 @@ describe("numéro de PV (spec §4.1)", () => {
     const attendre = vi.fn(async (ms: number) => {
       t += ms;
     });
-    const r = await attribuerNumeroPv("A35173", new Date("2026-11-19T13:32:05.100Z"), () => new Date(t), attendre);
+    const r = await attribuerNumeroPv("A00001", new Date("2026-11-19T13:32:05.100Z"), () => new Date(t), attendre);
     expect(attendre).toHaveBeenCalledWith(600);
-    expect(r.numero).toBe("A35173-20261119-143206");
+    expect(r.numero).toBe("A00001-20261119-143206");
   });
 
   it("attribuerNumeroPv ne boucle pas si l'horloge est bloquée", async () => {
     const fige = new Date("2026-11-19T13:32:05.400Z");
     const r = await attribuerNumeroPv(
-      "A35173",
+      "A00001",
       fige,
       () => fige,
       async () => undefined,
     );
-    expect(r.numero).toBe("A35173-20261119-143206");
+    expect(r.numero).toBe("A00001-20261119-143206");
   });
 });
 
@@ -279,11 +279,11 @@ describe("nomFichierPv (spec §5.3)", () => {
       nomFichierPv({
         famille: "MES",
         tag: "RPN_HTA_F1",
-        numero: "A35173-20261119-143205",
+        numero: "A00001-20261119-143205",
         indice: "A",
         extension: "pdf",
       }),
-    ).toBe("PV_MES_RPN_HTA_F1_A35173-20261119-143205_indA.pdf");
+    ).toBe("PV_MES_RPN_HTA_F1_A00001-20261119-143205_indA.pdf");
   });
 
   it("remplace les caractères interdits et les espaces du tag ; omet un tag absent", () => {
@@ -317,7 +317,7 @@ describe("empreinte SHA-256", () => {
     const base = {
       pvId: "p",
       versionId: "v",
-      numero: "A35173-20261119-143205",
+      numero: "A00001-20261119-143205",
       indice: "A",
       signeLe: "2026-11-19T15:00:00.000Z",
     };
@@ -436,7 +436,7 @@ describe("controlesSignature", () => {
   it("accepte un refus de signer motivé à la place de la signature client", () => {
     const d = pvComplet();
     d.entete.statutDocument = "CMS";
-    d.signatures.spie = { nom: "T. Castillon", date: "2026-11-19", signature: PNG, commentaires: "" };
+    d.signatures.spie = { nom: "T. Technicien", date: "2026-11-19", signature: PNG, commentaires: "" };
     d.signatures.client.date = "2026-11-19";
     d.signatures.client.refus = { motif: "" };
     expect(controlesSignature(d).map((m) => m.ref)).toEqual(["signatures.client.refus"]);
@@ -447,7 +447,7 @@ describe("controlesSignature", () => {
   it("exige la date du refus de signer (nom et visa client facultatifs)", () => {
     const d = pvComplet();
     d.entete.statutDocument = "BPE";
-    d.signatures.spie = { nom: "T. Castillon", date: "2026-11-19", signature: PNG, commentaires: "" };
+    d.signatures.spie = { nom: "T. Technicien", date: "2026-11-19", signature: PNG, commentaires: "" };
     d.signatures.client = {
       nom: "",
       date: "",
@@ -621,7 +621,7 @@ describe("valeurs préparées modifiées sur site (spec §4.2)", () => {
     const prep = creerPvRelais(CTX);
     prep.fonctions = [{ ...nouvelleFonction(ids), id: "f1", nomLogique: "PHPTOC1", reglages: "6250A" }];
     const site: PvRelaisData = structuredClone(prep);
-    site.generalites.lieu = "Poste GAU11"; // vide au bureau : pas une modification
+    site.generalites.lieu = "Poste DEMO1"; // vide au bureau : pas une modification
     site.fonctions[0]!.reglages = "6300A";
     site.identification = site.identification.map((f) => (f.id === "modele" ? { ...f, valeur: "7SX82" } : f));
     site.es.points[1] = { ...site.es.points[1]!, teste: "C" }; // réserve pré-cochée NA
@@ -648,7 +648,7 @@ describe("valeurs préparées modifiées sur site (spec §4.2)", () => {
     expect(valeursPrepareesModifiees(prep, site)).toEqual([]);
     site.revisions[0] = { ...site.revisions[0], validePar: "M. Martin" };
     expect(valeursPrepareesModifiees(prep, site)).toEqual([
-      { chemin: "revisions[0].validePar", avant: "F. BUCAU", apres: "M. Martin" },
+      { chemin: "revisions[0].validePar", avant: "V. VALIDEUR", apres: "M. Martin" },
     ]);
     expect(valeursPrepareesModifiees(prep, { ...site, revisions: [] })).toEqual([
       { chemin: "revisions[0]", avant: prep.revisions[0], apres: null },
@@ -738,7 +738,7 @@ describe("uploadPvVersionRequestSchema", () => {
       pvId: "8a5b1c2d-0000-4000-8000-0000000000aa",
       affaireId: "8a5b1c2d-0000-4000-8000-0000000000bb",
       equipementId: null,
-      numero: "A35173-20261119-143205",
+      numero: "A00001-20261119-143205",
       indice: "A",
       modele: "relais",
       modeleVersion: "1.0.0",

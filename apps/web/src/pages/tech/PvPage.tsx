@@ -18,6 +18,7 @@ import {
   supprimerBrouillonSite,
 } from "../../offline/pv-local";
 import { revisionACreer, revisionLocaleSuivante } from "../../offline/revisions";
+import { effacerSecours, restaurerSecours, secoursALaFermeture } from "../../offline/secours";
 import { useDb, useSync } from "../../offline/SyncProvider";
 import type { MajPv } from "../../pv/editor/context";
 import { ListeManquants, PvEditor, estSectionEditable } from "../../pv/editor/PvEditor";
@@ -25,7 +26,23 @@ import { ListeManquants, PvEditor, estSectionEditable } from "../../pv/editor/Pv
 /** Chargement d'un PV local et de son affaire ; null si absent de la tablette. */
 export function usePvLocal(versionId: string) {
   const db = useDb();
-  const pv = useLive(() => db.pvs.get(versionId).then((p) => p ?? null), [db, versionId]);
+  const user = useUser();
+  // Saisie non enregistrée lors d'une fermeture brutale : reprise avant d'afficher le PV.
+  const [repris, setRepris] = useState<string | null>(null);
+  useEffect(() => {
+    let actif = true;
+    void restaurerSecours(db, user.id, versionId, user.nom).finally(() => {
+      if (actif) setRepris(versionId);
+    });
+    return () => {
+      actif = false;
+    };
+  }, [db, user.id, user.nom, versionId]);
+  // Le PV n'est lu qu'après la reprise : l'éditeur démarre toujours avec la saisie récupérée.
+  const pv = useLive<LocalPv | null | undefined>(
+    () => (repris === versionId ? db.pvs.get(versionId).then((p) => p ?? null) : Promise.resolve(undefined)),
+    [db, versionId, repris],
+  );
   const affaire = useLive(
     () => (pv ? db.affaires.get(pv.affaireId).then((a) => a ?? null) : Promise.resolve(null)),
     [db, pv?.affaireId],
@@ -104,6 +121,7 @@ function EditeurLocal({ pvInitial, affaire }: { pvInitial: LocalPv; affaire: Loc
       creerEnregistreurDiffere<PvRelaisData>(
         async (d) => {
           await enregistrerDonnees(db, id, d, trace());
+          effacerSecours(user.id, id);
           setEtat("enregistre");
         },
         250,
@@ -112,7 +130,7 @@ function EditeurLocal({ pvInitial, affaire }: { pvInitial: LocalPv; affaire: Loc
           setErreur(err instanceof Error ? err.message : String(err));
         },
       ),
-    [db, id, trace],
+    [db, id, trace, user.id],
   );
 
   useEffect(() => {
@@ -122,11 +140,13 @@ function EditeurLocal({ pvInitial, affaire }: { pvInitial: LocalPv; affaire: Loc
 
   useEffect(() => {
     const stop = flushALaFermeture(() => enregistreur.flush());
+    const stopSecours = secoursALaFermeture(user.id, id, () => enregistreur.nonEnregistree);
     return () => {
       stop();
+      stopSecours();
       void enregistreur.flush();
     };
-  }, [enregistreur]);
+  }, [enregistreur, user.id, id]);
 
   useEffect(() => {
     if (!modifie.current) return;
@@ -156,8 +176,8 @@ function EditeurLocal({ pvInitial, affaire }: { pvInitial: LocalPv; affaire: Loc
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold uppercase text-brand-700">
-            <Link to={`/affaires/${pv.affaireId}`} className="underline">
+          <p className="flex flex-wrap items-center gap-x-1 text-sm font-semibold uppercase text-brand-700">
+            <Link to={`/affaires/${pv.affaireId}`} className="inline-flex min-h-12 items-center underline">
               {affaire?.affaire.numero ?? donnees.entete.numeroAffaire}
             </Link>{" "}
             — {eq?.tag ?? "équipement"}

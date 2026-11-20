@@ -6,3 +6,7 @@ apps/api/drizzle/
 infra/
 docs/
 .github/
+e2e/resultats/
+e2e/rapport/
+e2e/captures/
+e2e/.serveur/

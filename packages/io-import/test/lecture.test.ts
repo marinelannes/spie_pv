@@ -55,11 +55,11 @@ describe("texteCellule", () => {
 
 describe("lireListeEs : référence, révision, affaire", () => {
   it("lit le cartouche des feuilles", async () => {
-    const l = await lire(classeurStandard(), "A35173");
+    const l = await lire(classeurStandard(), "A00001");
     expect({ reference: l.reference, revision: l.revision, numeroAffaire: l.numeroAffaire }).toEqual({
-      reference: "GAU11_AUT_009",
+      reference: "DEMO1_AUT_009",
       revision: "B",
-      numeroAffaire: "A35173",
+      numeroAffaire: "A00001",
     });
     expect(l.anomalies).toEqual([]);
   });
@@ -74,22 +74,22 @@ describe("lireListeEs : référence, révision, affaire", () => {
   it("se replie sur la page de garde PdG_Client", async () => {
     const wb = nouveauClasseur();
     const pdg = wb.addWorksheet("PdG_Client");
-    pdg.getCell("B2").value = "\n\n\nSTOCKAGE BATTERIES - GAU11\n\nGAU11_AUT_009\nLISTE ENTREES / SORTIES RPN";
+    pdg.getCell("B2").value = "\n\n\nSTOCKAGE BATTERIES - DEMO1\n\nDEMO1_AUT_009\nLISTE ENTREES / SORTIES RPN";
     pdg.getCell("B30").value = "B";
     pdg.getCell("C30").value = "Mise à jour";
     pdg.getCell("B31").value = "A";
     pdg.getCell("B32").value = "INDICE";
     feuilleEquipements(wb, [eq("RPN_HTA_F1", "TYPE BATTERIE")], { cartouche: false });
     feuilleEs(wb, "TYPE BATTERIE", [es("C", "-", "E TOR", "X", "BI 1.01")], { cartouche: false });
-    const l = await lire(wb, "A35173");
-    expect(l.reference).toBe("GAU11_AUT_009");
+    const l = await lire(wb, "A00001");
+    expect(l.reference).toBe("DEMO1_AUT_009");
     expect(l.revision).toBe("B");
     expect(l.numeroAffaire).toBe("");
     expect(l.anomalies).toEqual([
       expect.objectContaining({
         code: "reference_introuvable",
         severite: "avertissement",
-        message: expect.stringContaining("A35173"),
+        message: expect.stringContaining("A00001"),
       }),
     ]);
   });
@@ -107,9 +107,9 @@ describe("lireListeEs : référence, révision, affaire", () => {
   it("refuse un fichier d'une autre affaire (erreur) et compare sans tenir compte de la casse", async () => {
     expect(codes(await lire(classeurStandard(), "A99999"), "erreur")).toEqual(["affaire_differente"]);
     expect((await lire(classeurStandard(), "A99999")).anomalies[0]?.message).toBe(
-      "Le fichier concerne l'affaire A35173, pas l'affaire A99999.",
+      "Le fichier concerne l'affaire A00001, pas l'affaire A99999.",
     );
-    expect((await lire(classeurStandard(), " a35173 ")).anomalies).toEqual([]);
+    expect((await lire(classeurStandard(), " a00001 ")).anomalies).toEqual([]);
   });
 });
 

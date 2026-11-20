@@ -114,10 +114,10 @@ describe("RequireAuth et repli hors ligne (spec §7.2)", () => {
 });
 
 const ANALYSE: IoImportAnalyseDto = {
-  fichier: "GAU11.xlsx",
-  reference: "GAU11_AUT_009",
+  fichier: "DEMO1.xlsx",
+  reference: "DEMO1_AUT_009",
   revision: "B",
-  numeroAffaire: "A35173",
+  numeroAffaire: "A00001",
   feuilles: [
     { nom: "TYPE BATTERIE", titre: "", nbPoints: 33, nbReserves: 2, groupesTag: [] },
     {
@@ -279,12 +279,12 @@ describe("suivi sans affaire choisie (anomalie 22)", () => {
         techniciens: techs.map((nom) => ({ id: nom.toLowerCase(), nom })),
       }) as unknown as PvResumeDto;
     const o = optionsSansAffaire([
-      pv("A35173", "f2", "RPN_HTA_F2", ["Théo", "Paul"]),
-      pv("A35173", "f1", "RPN_HTA_F1", ["Théo"]),
+      pv("A00001", "f2", "RPN_HTA_F2", ["Théo", "Paul"]),
+      pv("A00001", "f1", "RPN_HTA_F1", ["Théo"]),
       pv("A35174", "x1", "RPN_X", []),
-      pv("A35173", null, null, ["Agathe"]),
+      pv("A00001", null, null, ["Agathe"]),
     ]);
-    expect(o.equipements.map((e) => e.label)).toEqual(["A35173 — RPN_HTA_F1", "A35173 — RPN_HTA_F2", "A35174 — RPN_X"]);
+    expect(o.equipements.map((e) => e.label)).toEqual(["A00001 — RPN_HTA_F1", "A00001 — RPN_HTA_F2", "A35174 — RPN_X"]);
     expect(o.techniciens.map((t) => t.nom)).toEqual(["Agathe", "Paul", "Théo"]);
   });
 });
@@ -293,7 +293,7 @@ describe("journal d'audit lisible (anomalie 18)", () => {
   it("modifications en « avant → après » avec libellés ; listes et booléens en texte", () => {
     expect(
       detailsLisibles({
-        numero: "A35173",
+        numero: "A00001",
         modifications: {
           client: { avant: "Autre", apres: "Autre client" },
           archivee: { avant: false, apres: true },
@@ -301,7 +301,7 @@ describe("journal d'audit lisible (anomalie 18)", () => {
         },
       }),
     ).toEqual([
-      { libelle: "N°", valeur: "A35173" },
+      { libelle: "N°", valeur: "A00001" },
       { libelle: "Client", valeur: "Autre → Autre client" },
       { libelle: "Archivée", valeur: "non → oui" },
       { libelle: "Site", valeur: "(vide) → Site essai" },
@@ -336,10 +336,10 @@ describe("IoListePage : une version de la liste E/S est consultable (spec §4.6,
     const liste: ListeEsDetailDto = {
       id: "l2",
       affaireId: "a1",
-      referenceDocument: "GAU11_AUT_009",
+      referenceDocument: "DEMO1_AUT_009",
       revision: "B",
       version: 2,
-      fichierSource: "GAU11_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx",
+      fichierSource: "DEMO1_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx",
       importeLe: "2026-11-19T15:33:00.000Z",
       importePar: "Alice Admin",
       nbFeuilles: 1,

@@ -1,0 +1,5 @@
+# Produits par les tests : traces, captures, rapport HTML, données du serveur de test.
+resultats/
+rapport/
+captures/
+.serveur/

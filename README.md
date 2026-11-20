@@ -129,6 +129,35 @@ Avec un vrai PostgreSQL : `docker compose up -d` puis `DATABASE_URL=postgres://s
 | `node dist/cli.js create-admin --email … --name "…"` | Dans le conteneur : crée un administrateur et affiche son mot de passe provisoire |
 | `node dist/cli.js reset-password --email …`          | Dans le conteneur : nouveau mot de passe provisoire (déverrouille le compte)      |
 
+## Tests de bout en bout (Playwright, tablette)
+
+Dossier `e2e/` : le parcours du technicien est rejoué dans un navigateur, en viewport iPad **portrait (768×1024)** et
+**paysage (1024×768)** avec émulation tactile. Le serveur testé est le vrai build (API + PWA), sur une base PGlite en
+mémoire et un SharePoint simulé : aucune donnée n'est conservée, toutes les données sont fictives (`e2e/donnees.ts`).
+
+```bash
+pnpm --filter @spie/e2e exec playwright install chromium   # une fois
+pnpm e2e                                                   # build + tous les scénarios, deux orientations
+pnpm --filter @spie/e2e e2e -- --project=ipad-portrait 03  # un fichier, une orientation
+pnpm --filter @spie/e2e e2e:rapport                        # rapport HTML (traces des échecs)
+```
+
+Sans téléchargement de Chromium : `E2E_NAVIGATEUR=msedge` (ou `chrome`) utilise un navigateur déjà installé.
+
+| Fichier                             | Ce qui est vérifié                                                                      |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| `tests/01-parcours-nominal`         | PV complet → signature → dépôt SharePoint → retrouvé dans la liste → rouvert identique  |
+| `tests/02-modification-suppression` | Modification d'un PV existant, suppression d'une observation et d'un brouillon          |
+| `tests/03-validation`               | Champs obligatoires, nombres invalides, NC sans observation, accents, textes très longs |
+| `tests/04-envoi-au-serveur`         | Échec réseau, erreur 500, refus 409, serveur muet (timeout), double appui sans doublon  |
+| `tests/05-hors-ligne-rechargement`  | Réseau coupé en pleine saisie, signature hors ligne, rechargement de la page            |
+| `tests/06-ergonomie-tablette`       | Pas de défilement horizontal, cibles ≥ 44 px, libellés, contrastes (axe), claviers      |
+| `tests/07-securite`                 | HTML saisi jamais exécuté, API fermée sans session, jeton illisible par un script       |
+
+`e2e/outils.ts` regroupe les gestes du technicien (se connecter, créer un PV, tout remplir, signer) : un scénario se
+lit comme un mode opératoire. Les captures d'écran des écrans principaux sont écrites dans `e2e/captures/<orientation>/`.
+Non couvert : le clavier virtuel (à contrôler sur une vraie tablette).
+
 ## Configuration de l'API
 
 Variables principales (toutes dans `apps/api/src/config.ts`) :

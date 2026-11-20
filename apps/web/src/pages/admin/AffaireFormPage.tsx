@@ -72,7 +72,7 @@ function AffaireForm({ affaire }: { affaire?: AffaireDetailDto }) {
         {error && <Alert kind="error">{error}</Alert>}
         {saved && <Alert kind="success">Affaire enregistrée.</Alert>}
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="N° d'affaire" error={errors.numero?.message} hint="Ex. A35173. Repris dans le numéro des PV.">
+          <Field label="N° d'affaire" error={errors.numero?.message} hint="Ex. A00001. Repris dans le numéro des PV.">
             {(p) => <Input {...p} {...register("numero")} autoComplete="off" className="uppercase" />}
           </Field>
           <Field label="Client" error={errors.client?.message}>

@@ -126,11 +126,13 @@ const LignePoint = memo(function LignePoint({
           <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
             <CelluleTexte
               label={`${p.adresse} message lu en supervision`}
+              placeholder="Message lu en supervision"
               valeur={p.message}
               onChange={(message) => onSaisie(p.id, { message })}
             />
             <CelluleTexte
               label={`${p.adresse} commentaire`}
+              placeholder="Commentaire"
               valeur={p.commentaire}
               onChange={(commentaire) => onSaisie(p.id, { commentaire })}
             />

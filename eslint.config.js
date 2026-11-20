@@ -5,7 +5,16 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["**/dist/**", "**/dev-dist/**", "**/node_modules/**", "**/.data/**", "**/drizzle/**", "infra/**"],
+    ignores: [
+      "**/dist/**",
+      "**/dev-dist/**",
+      "**/node_modules/**",
+      "**/.data/**",
+      "**/drizzle/**",
+      "infra/**",
+      "e2e/rapport/**",
+      "e2e/resultats/**",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

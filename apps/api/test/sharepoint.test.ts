@@ -43,12 +43,12 @@ describe("SharePoint simulé", () => {
     expect(affaires.current?.path).toBe("Documents partagés / Affaires");
     expect(affaires.parent).toEqual({ driveId, itemId: "root" });
     const dossier = affaires.items[0]!;
-    expect(dossier.name).toBe("A35173 - Stockage batteries GAU11");
+    expect(dossier.name).toBe("A00001 - Stockage batteries DEMO1");
 
     const created = await post("/api/admin/affaires", {
-      numero: "A35173",
+      numero: "A00001",
       client: "Client",
-      projet: "Stockage batteries – GAU11",
+      projet: "Stockage batteries – DEMO1",
       dossierSharePoint: {
         driveId,
         itemId: dossier.id,
@@ -61,23 +61,23 @@ describe("SharePoint simulé", () => {
 
   it("dépose un fichier de test dans le dossier de l'affaire (critère de fin du lot 0)", async () => {
     const list = (await get("/api/admin/affaires")).json<AffaireDetailDto[]>();
-    const affaire = list.find((a) => a.numero === "A35173")!;
+    const affaire = list.find((a) => a.numero === "A00001")!;
 
     const res = await post("/api/admin/sharepoint/test-upload", { affaireId: affaire.id });
     expect(res.statusCode).toBe(201);
     const up = res.json<TestUploadResponse>();
     expect(up.name).toMatch(/^TEST_DEPOT_spie-pv_20261119-143205_[0-9a-f]{4}\.txt$/);
-    expect(up.folderPath).toBe("Documents partagés / Affaires / A35173 - Stockage batteries GAU11");
+    expect(up.folderPath).toBe("Documents partagés / Affaires / A00001 - Stockage batteries DEMO1");
 
     // Hors production, le SharePoint simulé sert les fichiers déposés : le lien s'ouvre comme un webUrl SharePoint.
     expect(up.webUrl).toBe(
-      `/sharepoint-simule/Documents%20partag%C3%A9s/Affaires/A35173%20-%20Stockage%20batteries%20GAU11/${up.name}`,
+      `/sharepoint-simule/Documents%20partag%C3%A9s/Affaires/A00001%20-%20Stockage%20batteries%20DEMO1/${up.name}`,
     );
     const servi = await t.app.inject({ method: "GET", url: up.webUrl! });
     expect(servi.statusCode).toBe(200);
     const content = servi.body;
     expect(content).toContain("Demandé par : Alice Admin <admin@spie.test>");
-    expect(content).toContain("Affaire : A35173");
+    expect(content).toContain("Affaire : A00001");
     expect((await t.app.inject({ method: "GET", url: "/sharepoint-simule/../../package.json" })).statusCode).not.toBe(
       200,
     );
@@ -152,7 +152,7 @@ describe("isPathInside", () => {
   it("Windows : refuse un autre lecteur et la remontée, accepte les descendants", () => {
     expect(isPathInside("C:\\data\\sp", "D:\\autre", win32)).toBe(false);
     expect(isPathInside("C:\\data\\sp", "C:\\data", win32)).toBe(false);
-    expect(isPathInside("C:\\data\\sp", "C:\\data\\sp\\A35173", win32)).toBe(true);
+    expect(isPathInside("C:\\data\\sp", "C:\\data\\sp\\A00001", win32)).toBe(true);
     expect(isPathInside("C:\\data\\sp", "C:\\data\\sp\\..notes", win32)).toBe(true);
   });
 

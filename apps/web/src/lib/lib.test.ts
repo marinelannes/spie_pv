@@ -1,6 +1,6 @@
 import type { AuthUser } from "@spie/shared";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, api, apiFetch, setSession } from "./api";
+import { ApiError, DELAI_LECTURE_MS, api, apiFetch, setSession } from "./api";
 import { offlineState } from "./auth";
 import { fileNameFromDisposition, fileToBase64 } from "./files";
 import { formatDateIso, formatOctets, isoDateParis } from "./format";
@@ -105,6 +105,46 @@ describe("api / apiFetch", () => {
     const err = await apiFetch("/api/x").catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).code).toBe("network");
+  });
+
+  it("serveur qui ne répond pas : la requête est abandonnée après le délai, ApiError « network »", async () => {
+    vi.useFakeTimers();
+    try {
+      // Un fetch qui ne répond jamais, et ne se termine que si on l'annule.
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          (_url: string, init?: RequestInit) =>
+            new Promise<Response>((_resolve, reject) => {
+              init?.signal?.addEventListener("abort", () => reject(new DOMException("annulé", "AbortError")));
+            }),
+        ),
+      );
+      const attente = apiFetch("/api/x").catch((e: unknown) => e);
+      await vi.advanceTimersByTimeAsync(DELAI_LECTURE_MS);
+      const err = await attente;
+      expect(err).toBeInstanceOf(ApiError);
+      expect((err as ApiError).code).toBe("network");
+      expect((err as ApiError).message).toBe("Le serveur ne répond pas. Vérifiez la connexion réseau.");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("annulation demandée par l'appelant : l'AbortError est transmise telle quelle", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: string, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(new DOMException("annulé", "AbortError")));
+          }),
+      ),
+    );
+    const controleur = new AbortController();
+    const attente = apiFetch("/api/x", { signal: controleur.signal }).catch((e: unknown) => e);
+    controleur.abort();
+    expect(((await attente) as Error).name).toBe("AbortError");
   });
 
   it("renvoie l'erreur structurée de l'API", async () => {

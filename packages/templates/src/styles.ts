@@ -184,11 +184,15 @@ table.modifs td.chemin { font-family: "Courier New", "Liberation Mono", monospac
   pointer-events: none; white-space: nowrap;
 }
 .pagedjs_page .pagedjs_sheet { position: relative; }
+`;
 
-/* Aperçu à l'écran (tablette) : pages séparées sur fond gris. */
-@media screen {
-  body { background: #e5e7eb; }
-  .pagedjs_pages { padding: 6mm 0; }
-  .pagedjs_page { background: #fff; margin: 0 auto 6mm; box-shadow: 0 1mm 4mm rgba(0, 0, 0, 0.25); }
-}
+/**
+ * Aperçu à l'écran (tablette) : pages blanches séparées sur fond gris. Feuille de style à part, marquée
+ * `data-pagedjs-ignore` : Paged.js retire de la page les styles qu'il traite, et n'y garde pas les règles
+ * `@media screen` (sans cela les pages de l'aperçu n'ont ni fond blanc ni séparation).
+ */
+export const CSS_APERCU_ECRAN = String.raw`
+body { background: #e5e7eb; }
+.pagedjs_pages { padding: 6mm 0; }
+.pagedjs_page { background: #fff; margin: 0 auto 6mm; box-shadow: 0 1mm 4mm rgba(0, 0, 0, 0.25); }
 `;

@@ -40,7 +40,7 @@ describe("accès au back-office de préparation (spec §7.3)", () => {
   it("le technicien n'y a pas accès ; le préparateur ne voit que ses affaires", async () => {
     expect((await as(t, s.techToken).get("/api/prep/affaires")).statusCode).toBe(403);
     expect((await prep().get("/api/prep/affaires")).json().map((a: { numero: string }) => a.numero)).toEqual([
-      "A35173",
+      "A00001",
     ]);
     // Une affaire à laquelle le préparateur n'est pas affecté.
     const autre = await as(t, s.adminToken).post("/api/admin/affaires", { numero: "A99999", client: "X", projet: "Y" });
@@ -52,12 +52,12 @@ describe("accès au back-office de préparation (spec §7.3)", () => {
 describe("import de la liste E/S (spec §4.4)", () => {
   it("analyse sans enregistrer : associations automatiques par TYPE CELLULE, anomalies, groupes TAG", async () => {
     const res = await prep().post(`/api/prep/affaires/${s.affaire.id}/io-lists/analyse`, {
-      fichier: "GAU11_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx",
+      fichier: "DEMO1_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx",
       contenuBase64: contenu,
     });
     expect(res.statusCode).toBe(200);
     const a = res.json<IoImportAnalyseDto>();
-    expect(a).toMatchObject({ reference: "GAU11_AUT_009", revision: "B", numeroAffaire: "A35173", bloquant: false });
+    expect(a).toMatchObject({ reference: "DEMO1_AUT_009", revision: "B", numeroAffaire: "A00001", bloquant: false });
     const assoc = Object.fromEntries(a.equipements.map((e) => [e.tag, e.association]));
     expect(assoc.RPN_HTA_F1).toMatchObject({ feuille: "TYPE BATTERIE", mode: "auto" });
     expect(assoc.RPN_HTB_DIFF_TR).toMatchObject({ feuille: null, mode: "aucune" });
@@ -92,7 +92,7 @@ describe("import de la liste E/S (spec §4.4)", () => {
 
   it("importe : version 1, équipements créés, feuilles associées (avec filtre TAG pour les relais HTB)", async () => {
     const res = await prep().post(`/api/prep/affaires/${s.affaire.id}/io-lists`, {
-      fichier: "GAU11_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx",
+      fichier: "DEMO1_AUT_009_LISTE ENTREES SORTIES RPN_B.xlsx",
       contenuBase64: contenu,
       associations: ASSOC_HTB,
     });
@@ -100,7 +100,7 @@ describe("import de la liste E/S (spec §4.4)", () => {
     const r = res.json<IoImportResultDto>();
     expect(r.liste).toMatchObject({
       version: 1,
-      referenceDocument: "GAU11_AUT_009",
+      referenceDocument: "DEMO1_AUT_009",
       revision: "B",
       nbFeuilles: 2,
       nbPoints: 9,
@@ -141,7 +141,7 @@ describe("import de la liste E/S (spec §4.4)", () => {
 
   it("un nouvel import propose les associations choisies à la main pour la version précédente", async () => {
     const res = await prep().post(`/api/prep/affaires/${s.affaire.id}/io-lists/analyse`, {
-      fichier: "GAU11_AUT_009_LISTE ENTREES SORTIES RPN_C.xlsx",
+      fichier: "DEMO1_AUT_009_LISTE ENTREES SORTIES RPN_C.xlsx",
       contenuBase64: contenu,
     });
     const a = res.json<IoImportAnalyseDto>();
@@ -157,7 +157,7 @@ describe("import de la liste E/S (spec §4.4)", () => {
   it("un nouvel import crée la version 2, met à jour les équipements et garde leurs associations", async () => {
     // Sans associations dans la requête : celles de la version 1 (choisies à la main) sont reprises.
     const res = await prep().post(`/api/prep/affaires/${s.affaire.id}/io-lists`, {
-      fichier: "GAU11_AUT_009_LISTE ENTREES SORTIES RPN_C.xlsx",
+      fichier: "DEMO1_AUT_009_LISTE ENTREES SORTIES RPN_C.xlsx",
       contenuBase64: contenu,
     });
     expect(res.json<IoImportResultDto>()).toMatchObject({
@@ -222,21 +222,21 @@ describe("préparation des PV (spec §3.1, §4.6)", () => {
     expect(res.statusCode).toBe(201);
     pvF1 = res.json<PvDetailDto>();
     expect(pvF1).toMatchObject({
-      numero: "A35173-20261119-143205",
+      numero: "A00001-20261119-143205",
       indice: "A",
       statut: "prepare",
       equipementTag: "RPN_HTA_F1",
       avancementEs: { total: 4, testees: 1, nc: 0 },
     });
     expect(pvF1.donnees.entete).toMatchObject({
-      numeroDocument: "GAU11_AUT_009",
-      numeroAffaire: "A35173",
+      numeroDocument: "DEMO1_AUT_009",
+      numeroAffaire: "A00001",
       indice: "A",
     });
     expect(pvF1.donnees.revisions[0]).toMatchObject({
       date: "2026-11-19",
-      validePar: "F. BUCAU",
-      approuvePar: "F. DELORDI",
+      validePar: "V. VALIDEUR",
+      approuvePar: "A. APPROBATEUR",
     });
     expect(pvF1.donnees.identification.find((f) => f.id === "modele")?.valeur).toBe("COMPACT - 7SX8000");
     expect(pvF1.donnees.es).toMatchObject({ feuille: "TYPE BATTERIE", listeVersion: 2, revision: "B" });
@@ -249,7 +249,7 @@ describe("préparation des PV (spec §3.1, §4.6)", () => {
     const p = (
       await prep().post("/api/prep/pv", { affaireId: s.affaire.id, equipementId: mcn.id })
     ).json<PvDetailDto>();
-    expect(p.numero).toBe("A35173-20261119-143206");
+    expect(p.numero).toBe("A00001-20261119-143206");
     expect(p.donnees.es.points.map((x) => x.designation)).toEqual(["DEFAUT BOBINE", "COURANT MASSE GRILLE HTA"]);
     expect(p.donnees.es.filtreTag).toBe("PROTECTION TRANSFO BOBINE POINT NEUTRE");
     expect((await prep().del(`/api/prep/pv/${p.pvId}`)).statusCode).toBe(204);
